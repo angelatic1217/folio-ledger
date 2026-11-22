@@ -1,0 +1,7 @@
+symbol,name,market,currency,yahoo_ticker,monitor_mdd
+0050,元大台灣50,TW,TWD,0050.TW,TRUE
+006208,富邦台50,TW,TWD,006208.TW,TRUE
+QQQ,Invesco QQQ Trust,US,USD,QQQ,TRUE
+VOO,Vanguard S&P 500,US,USD,VOO,TRUE
+VT,Vanguard Total World,US,USD,VT,TRUE
+SOXX,iShares 半導體 ETF,US,USD,SOXX,TRUE

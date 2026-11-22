@@ -1,0 +1,6 @@
+symbol,name,yahoo_ticker,currency,scope
+0050,元大台灣50,0050.TW,TWD,TW
+TWII,台灣加權指數,^TWII,TWD,TW
+VOO,標普 500 (VOO),VOO,USD,US
+VT,全球股票 (VT),VT,USD,ALL
+AOA,股債平衡 (AOA),AOA,USD,ALL
