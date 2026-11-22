@@ -43,7 +43,6 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
 
   const activeRow =
     filteredRows.find((r) => r.symbol === selectedSymbol) ??
-    rows.find((r) => r.symbol === selectedSymbol) ??
     filteredRows[0] ??
     null;
 

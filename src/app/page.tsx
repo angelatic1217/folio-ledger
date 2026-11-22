@@ -5,6 +5,7 @@ import {
   BarChart3,
   CalendarRange,
   Database,
+  Download,
   LayoutDashboard,
   Moon,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyShellOnboarding } from "@/components/shell/EmptyShellOnboarding";
+import { ExportModal } from "@/components/shell/ExportModal";
 import { SettingsModal } from "@/components/shell/SettingsModal";
 import { Badge, Button } from "@/components/ui/primitives";
 import { AnnualAlphaView } from "@/components/views/AnnualAlphaView";
@@ -65,6 +67,7 @@ export default function HomePage() {
   const [scope, setScope] = useState<PortfolioScope>("invested");
   const [currency, setCurrency] = useState<CurrencyCode>("TWD");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [toast, setToast] = useState<{ title: string; body?: string; error?: boolean } | null>(
     null
   );
@@ -355,6 +358,12 @@ export default function HomePage() {
               </Button>
             )}
 
+            {/* Export Data & Diagnostics */}
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">匯出</span>
+            </Button>
+
             {/* Settings */}
             <Button variant="outline" onClick={() => setSettingsOpen(true)}>
               <Settings className="h-3.5 w-3.5" />
@@ -469,6 +478,18 @@ export default function HomePage() {
           )}
         </main>
       </div>
+
+      {/* Export Modal */}
+      <ExportModal
+        open={exportOpen}
+        sheets={sheets}
+        engine={engine}
+        market={market}
+        settings={settings}
+        scope={scope}
+        onClose={() => setExportOpen(false)}
+        onExported={(label) => showToast("匯出完成", `已下載 ${label}`)}
+      />
 
       {/* Settings Modal */}
       <SettingsModal

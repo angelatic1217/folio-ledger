@@ -1,8 +1,9 @@
 "use client";
 
-import { Download, Settings, Shield, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, Settings, Shield, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge, Button, Card, Input } from "@/components/ui/primitives";
+import { buildSheetTabCsv, triggerFileDownload } from "@/lib/export/exporter";
 import type { PortfolioSheetsData } from "@/types/sheet";
 
 type SheetTabKey = "transactions" | "assets" | "cash_snapshots" | "benchmarks";
@@ -177,8 +178,20 @@ export function LedgerSchemaView({
             onChange={(e) => setSearch(e.target.value)}
             className="w-48"
           />
+          <Button
+            variant="outline"
+            onClick={() =>
+              triggerFileDownload(
+                `${activeTab}-exported.csv`,
+                buildSheetTabCsv(sheets, activeTab),
+                "text/csv;charset=utf-8"
+              )
+            }
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" /> 匯出此分頁 CSV
+          </Button>
           <Button variant="outline" onClick={() => downloadTemplate(activeTab)}>
-            <Download className="h-3.5 w-3.5" /> 下載 {activeTab}.csv 範本
+            <Download className="h-3.5 w-3.5" /> 空白範本
           </Button>
           <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-xs font-medium text-[var(--primary-foreground)] hover:opacity-90">
             <Upload className="h-3.5 w-3.5" /> 匯入本地 CSV
