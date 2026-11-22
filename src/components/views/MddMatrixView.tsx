@@ -66,7 +66,7 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
           <select
             value={marketFilter}
             onChange={(e) => setMarketFilter(e.target.value as typeof marketFilter)}
-            className="h-8 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 text-xs text-[var(--foreground)] cursor-pointer"
+            className="min-h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs text-[var(--foreground)] cursor-pointer"
           >
             <option value="ALL">全部標的</option>
             <option value="HELD">僅看目前持有</option>
@@ -78,7 +78,7 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="h-8 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 text-xs text-[var(--foreground)] cursor-pointer"
+            className="min-h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs text-[var(--foreground)] cursor-pointer"
           >
             <option value="dd-asc">排序：當前水下最深優先</option>
             <option value="ratio-desc">排序：佔歷史 MDD 水位</option>
@@ -98,7 +98,7 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                 <th className="px-3 py-3 text-right font-semibold">歷史含息高點</th>
                 <th className="px-3 py-3 text-right font-semibold">當前水下深度</th>
                 <th className="px-3 py-3 text-right font-semibold">歷史 MDD</th>
-                <th className="min-w-[170px] px-4 py-3 font-semibold">
+                <th className="min-w-[210px] px-4 py-3 font-semibold">
                   水下水位（vs 歷史 MDD）
                 </th>
                 <th className="px-3 py-3 text-right font-semibold">水下天數</th>
@@ -130,13 +130,13 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums">
                       <div>{formatPrice(row.latestPrice, row.currency)}</div>
-                      <div className="text-[11px] text-[var(--muted-foreground)]">
+                      <div className="text-[0.75rem] text-[var(--muted-foreground)]">
                         {row.latestDate}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--muted-foreground)]">
                       <div>{formatPrice(row.peakAdjPrice, row.currency)}</div>
-                      <div className="text-[11px]">{row.peakDate}</div>
+                      <div className="text-[0.75rem]">{row.peakDate}</div>
                     </td>
                     <td
                       className="px-3 py-3 text-right font-mono font-bold tabular-nums"
@@ -146,10 +146,10 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums text-[var(--muted-foreground)]">
                       <div>{formatPercent(row.historicalMdd)}</div>
-                      <div className="text-[11px]">{row.mddDate}</div>
+                      <div className="text-[0.75rem]">{row.mddDate}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="mb-1 flex justify-between text-[11px] text-[var(--muted-foreground)]">
+                      <div className="mb-1 flex justify-between text-[0.75rem] text-[var(--muted-foreground)]">
                         <span>佔歷史 MDD</span>
                         <span className="font-mono font-semibold text-[var(--foreground)]">
                           {row.mddRatioPct}%

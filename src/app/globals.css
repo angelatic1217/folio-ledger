@@ -13,6 +13,24 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+
+  /* Font scale = 1.25x original px (root 18.4px = 1.15x UI * 1.087x text ratio) */
+  --text-xs: 0.8152rem;
+  --text-xs--line-height: 1.2rem;
+  --text-sm: 0.9511rem;
+  --text-sm--line-height: 1.38rem;
+  --text-base: 1.087rem;
+  --text-base--line-height: 1.55rem;
+  --text-lg: 1.2228rem;
+  --text-lg--line-height: 1.7rem;
+  --text-xl: 1.3587rem;
+  --text-xl--line-height: 1.85rem;
+  --text-2xl: 1.6304rem;
+  --text-2xl--line-height: 2.05rem;
+}
+
+html {
+  font-size: 18.4px;
 }
 
 :root {

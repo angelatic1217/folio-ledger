@@ -156,7 +156,7 @@ export function DynamicPeriodView({
       </Card>
 
       {/* Summary Strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {summaryCards.map((c) => (
           <Card key={c.label} className="p-3 space-y-1">
             <div className="text-xs text-[var(--muted-foreground)]">{c.label}</div>

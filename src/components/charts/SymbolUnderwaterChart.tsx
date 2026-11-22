@@ -39,9 +39,9 @@ export function SymbolUnderwaterChart({
   const minAxis = Math.min(-10, Math.floor((mddPct - 2) / 5) * 5);
 
   return (
-    <div className="h-[190px] w-full">
+    <div className="h-[218px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 2 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 18, left: 2, bottom: 4 }}>
           <defs>
             <linearGradient id="symbolUnderwaterGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--warning)" stopOpacity={0.14} />
@@ -55,18 +55,18 @@ export function SymbolUnderwaterChart({
           />
           <XAxis
             dataKey="date"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
-            minTickGap={56}
+            minTickGap={68}
           />
           <YAxis
             domain={[minAxis, 0]}
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={56}
           />
           <ReferenceLine y={0} stroke="var(--border)" />
           <ReferenceLine

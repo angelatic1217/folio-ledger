@@ -39,9 +39,9 @@ export function AnnualAlphaBarChart({
   }
 
   return (
-    <div className="h-[220px] w-full">
+    <div className="h-[252px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+        <BarChart data={data} margin={{ top: 12, right: 18, left: 2, bottom: 5 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--border)"
@@ -49,16 +49,16 @@ export function AnnualAlphaBarChart({
           />
           <XAxis
             dataKey="year"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 15 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
           />
           <YAxis
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={false}
-            width={46}
+            width={58}
           />
           <ReferenceLine y={0} stroke="var(--border)" />
           <Tooltip

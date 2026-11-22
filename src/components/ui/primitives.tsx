@@ -14,9 +14,9 @@ const buttonVariants = cva(
         danger: "bg-[var(--danger)]/15 text-[var(--danger)] hover:bg-[var(--danger)]/25",
       },
       size: {
-        sm: "h-7 px-2.5",
-        md: "h-8 px-3",
-        lg: "h-9 px-4 text-sm",
+        sm: "min-h-8 px-3 py-1",
+        md: "min-h-9 px-3.5 py-1.5",
+        lg: "min-h-10 px-4 py-2 text-sm",
       },
     },
     defaultVariants: {
@@ -52,7 +52,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 }
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap",
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.75rem] font-medium whitespace-nowrap",
   {
     variants: {
       variant: {
@@ -87,7 +87,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "flex h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]",
+        "flex min-h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]",
         className
       )}
       {...props}

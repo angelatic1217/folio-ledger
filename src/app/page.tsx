@@ -270,7 +270,7 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col">
       {/* Top Header */}
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--card)] px-4 py-3 lg:px-6">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-[1656px] flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)]/15 text-[var(--primary)]">
               <Activity className="h-4 w-4" />
@@ -294,7 +294,7 @@ export default function HomePage() {
                       : "Demo 模式"}
                 </Badge>
               </div>
-              <p className="text-[11px] text-[var(--muted-foreground)]">
+              <p className="text-[0.75rem] text-[var(--muted-foreground)]">
                 收盤行情基準：{engine.asOfDate}
               </p>
             </div>
@@ -389,9 +389,9 @@ export default function HomePage() {
       </header>
 
       {/* Main Body */}
-      <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col lg:flex-row">
+      <div className="mx-auto flex w-full max-w-[1656px] flex-1 flex-col lg:flex-row">
         {/* Sidebar */}
-        <aside className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--card)]/50 p-3 lg:w-56 lg:flex-col lg:border-r lg:border-b-0">
+        <aside className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--border)] bg-[var(--card)]/50 p-3 lg:w-64 lg:flex-col lg:border-r lg:border-b-0">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.key;

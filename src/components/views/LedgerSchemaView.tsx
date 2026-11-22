@@ -193,7 +193,7 @@ export function LedgerSchemaView({
           <Button variant="outline" onClick={() => downloadTemplate(activeTab)}>
             <Download className="h-3.5 w-3.5" /> 空白範本
           </Button>
-          <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-xs font-medium text-[var(--primary-foreground)] hover:opacity-90">
+          <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-1.5 text-xs font-medium text-[var(--primary-foreground)] hover:opacity-90">
             <Upload className="h-3.5 w-3.5" /> 匯入本地 CSV
             <input
               type="file"

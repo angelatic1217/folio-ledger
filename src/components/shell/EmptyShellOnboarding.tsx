@@ -82,7 +82,7 @@ export function EmptyShellOnboarding({
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <span className="text-[11px] text-[var(--muted-foreground)]">
+            <span className="text-[0.75rem] text-[var(--muted-foreground)]">
               同步後會自動寫入瀏覽器快取，下次打開免重登即可直接回顧
             </span>
             <Button

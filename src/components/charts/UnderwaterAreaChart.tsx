@@ -55,9 +55,9 @@ export function UnderwaterAreaChart({
   const minAxis = Math.min(-5, Math.floor((mddPct - 2) / 5) * 5);
 
   return (
-    <div className="h-[240px] w-full">
+    <div className="h-[276px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+        <AreaChart data={chartData} margin={{ top: 10, right: 18, left: 2, bottom: 5 }}>
           <defs>
             <linearGradient id="underwaterCrimson" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--danger)" stopOpacity={0.1} />
@@ -71,18 +71,18 @@ export function UnderwaterAreaChart({
           />
           <XAxis
             dataKey="date"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
-            minTickGap={48}
+            minTickGap={60}
           />
           <YAxis
             domain={[minAxis, 0]}
             tickFormatter={(v) => `${v}%`}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={false}
-            width={46}
+            width={58}
           />
           <ReferenceLine y={0} stroke="var(--border)" strokeWidth={1.2} />
           {mddPct < 0 && (

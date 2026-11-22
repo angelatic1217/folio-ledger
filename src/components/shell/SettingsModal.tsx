@@ -88,7 +88,7 @@ export function SettingsModal({
             <div className="font-semibold">自訂 MDD 監控矩陣警示門檻（下跌 %）</div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="mb-1 block text-[11px] text-[var(--muted-foreground)]">
+                <label className="mb-1 block text-[0.75rem] text-[var(--muted-foreground)]">
                   輕度回檔 (-%)
                 </label>
                 <Input
@@ -101,7 +101,7 @@ export function SettingsModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] text-[var(--muted-foreground)]">
+                <label className="mb-1 block text-[0.75rem] text-[var(--muted-foreground)]">
                   左側分批 (-%)
                 </label>
                 <Input
@@ -114,7 +114,7 @@ export function SettingsModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] text-[var(--muted-foreground)]">
+                <label className="mb-1 block text-[0.75rem] text-[var(--muted-foreground)]">
                   深度折價 (-%)
                 </label>
                 <Input

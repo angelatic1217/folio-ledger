@@ -65,9 +65,9 @@ export function TwrBenchmarkChart({
   }
 
   return (
-    <div className="h-[270px] w-full">
+    <div className="h-[310px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+        <LineChart data={chartData} margin={{ top: 10, right: 18, left: 2, bottom: 5 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--border)"
@@ -75,17 +75,17 @@ export function TwrBenchmarkChart({
           />
           <XAxis
             dataKey="date"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
-            minTickGap={48}
+            minTickGap={60}
           />
           <YAxis
             domain={["auto", "auto"]}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 14 }}
             tickLine={false}
             axisLine={false}
-            width={46}
+            width={58}
           />
           <ReferenceLine
             y={100}
