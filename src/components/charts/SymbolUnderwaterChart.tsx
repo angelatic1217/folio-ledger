@@ -16,24 +16,31 @@ import type { SymbolUnderwaterPoint } from "@/types/quant";
 interface SymbolUnderwaterChartProps {
   series: SymbolUnderwaterPoint[];
   historicalMdd: number;
+  mddDate?: string;
 }
 
 export function SymbolUnderwaterChart({
   series,
   historicalMdd,
+  mddDate,
 }: SymbolUnderwaterChartProps) {
   const data = useMemo(() => {
     const step = series.length > 420 ? Math.ceil(series.length / 420) : 1;
     return series
       .filter(
-        (_, i) => step === 1 || i === 0 || i === series.length - 1 || i % step === 0
+        (pt, i) =>
+          step === 1 ||
+          i === 0 ||
+          i === series.length - 1 ||
+          (mddDate && pt.date === mddDate) ||
+          i % step === 0
       )
       .map((pt) => ({
         date: pt.date,
         drawdownPct: Number((pt.drawdown * 100).toFixed(2)),
         adjClose: pt.adjClose,
       }));
-  }, [series]);
+  }, [series, mddDate]);
 
   const mddPct = Number((historicalMdd * 100).toFixed(2));
   const minAxis = Math.min(-10, Math.floor((mddPct - 2) / 5) * 5);

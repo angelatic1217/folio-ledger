@@ -2,6 +2,7 @@ import type { BenchmarkScope, CurrencyCode, MarketCode } from "./sheet";
 
 export type PortfolioScope = "invested" | "total";
 export type TimeRangePreset = "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "ALL";
+export type MddLookbackPreset = "5Y" | "10Y" | "MAX";
 export type MddSignalLevel = "near-high" | "mild" | "moderate" | "deep";
 
 export interface MddThresholds {
@@ -52,6 +53,7 @@ export interface MddMatrixRow {
   yahooTicker: string;
   held: boolean;
   shares: number;
+  firstDate: string;
   latestPrice: number;
   latestDate: string;
   peakAdjPrice: number;

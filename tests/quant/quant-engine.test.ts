@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computePeriodPerformance } from "@/lib/quant/attribution";
 import { buildForwardFilledBarMap, buildUnionTradingCalendar } from "@/lib/quant/calendar";
-import { computeDrawdownSeries } from "@/lib/quant/drawdown";
+import { applyMddLookback, computeDrawdownSeries } from "@/lib/quant/drawdown";
 import { runQuantEngine, sliceSeriesByRange } from "@/lib/quant/engine";
 import { getCumulativeSplitFactorAfter, toSplitAdjustedShares } from "@/lib/quant/holdings";
 import { computeDailySubperiodReturn, computeModifiedDietz } from "@/lib/quant/returns";
@@ -274,5 +274,50 @@ describe("Quant Engine: Core Financial Formulas", () => {
     expect(us2024.modifiedDietz).toBeCloseTo(0.02, 5);
     expect(us2024.twr).toBeCloseTo(0.02, 5);
     expect(us2024.benchmarkReturn).toBeCloseTo(0.02, 5);
+  });
+
+  it("recomputes historical MDD accurately across 5Y vs MAX lookback windows", () => {
+    const mockRows = [
+      {
+        symbol: "QQQ",
+        name: "Invesco QQQ Trust",
+        market: "US" as const,
+        currency: "USD" as const,
+        yahooTicker: "QQQ",
+        held: false,
+        shares: 0,
+        firstDate: "2000-03-01",
+        latestPrice: 450,
+        latestDate: "2026-11-20",
+        peakAdjPrice: 500,
+        peakDate: "2026-10-01",
+        currentDrawdown: -0.1,
+        historicalMdd: -0.8,
+        mddDate: "2002-10-09",
+        mddRatioPct: 13,
+        daysUnderwater: 20,
+        weightPct: 0,
+        marketValueTwd: 0,
+        costBasisTwd: 0,
+        unrealizedPnlPct: null,
+        signal: "moderate" as const,
+        underwaterSeries: [
+          { date: "2000-03-01", adjClose: 100, drawdown: 0 },
+          { date: "2002-10-09", adjClose: 20, drawdown: -0.8 },
+          { date: "2022-01-03", adjClose: 400, drawdown: 0 },
+          { date: "2022-11-03", adjClose: 260, drawdown: -0.35 },
+          { date: "2026-10-01", adjClose: 500, drawdown: 0 },
+          { date: "2026-11-20", adjClose: 450, drawdown: -0.1 },
+        ],
+      },
+    ];
+
+    const maxRows = applyMddLookback(mockRows, "MAX");
+    const fiveYearRows = applyMddLookback(mockRows, "5Y");
+
+    expect(maxRows[0].historicalMdd).toBeCloseTo(-0.8, 5);
+    expect(fiveYearRows[0].historicalMdd).toBeCloseTo(-0.35, 5);
+    expect(fiveYearRows[0].mddDate).toBe("2022-11-03");
+    expect(fiveYearRows[0].mddRatioPct).toBe(Math.round((0.1 / 0.35) * 100));
   });
 });

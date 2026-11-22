@@ -26,6 +26,45 @@ function toIsoDate(epochSec) {
   return new Date(epochSec * 1000).toISOString().slice(0, 10);
 }
 
+/**
+ * Repairs Yahoo Finance incomplete historical split-adjustment cliffs
+ * (e.g., 0050.TW where Yahoo backfilled the 2025 1-for-4 split only down to 2014-01-02,
+ * leaving 2009-2013 4x unadjusted with a fake -75% overnight drop on 2014-01-02).
+ */
+function repairIncompleteSplitBackfill(bars, splits) {
+  if (bars.length < 2 || splits.length === 0) return bars;
+  const fixed = bars.map((b) => ({ ...b }));
+
+  for (const s of splits) {
+    if (s.ratio < 2) continue;
+    const tolLow = s.ratio * 0.95;
+    const tolHigh = s.ratio * 1.05;
+
+    for (let i = fixed.length - 1; i >= 1; i--) {
+      if (fixed[i].date >= s.date) continue;
+      const closeRatio = fixed[i - 1].close / fixed[i].close;
+      const adjRatio = fixed[i - 1].adjClose / fixed[i].adjClose;
+      if (
+        closeRatio >= tolLow &&
+        closeRatio <= tolHigh &&
+        adjRatio >= tolLow &&
+        adjRatio <= tolHigh
+      ) {
+        console.warn(
+          `  [repair] Detected incomplete ${s.ratio}x split backfill before ${fixed[i].date}; dividing ${i} earlier bars by ${s.ratio}`
+        );
+        for (let k = 0; k < i; k++) {
+          fixed[k].close = Number((fixed[k].close / s.ratio).toFixed(4));
+          fixed[k].adjClose = Number((fixed[k].adjClose / s.ratio).toFixed(4));
+        }
+        break;
+      }
+    }
+  }
+
+  return fixed;
+}
+
 async function fetchYahooChart(yahooTicker, startDateIso) {
   const period1 = Math.floor(new Date(`${startDateIso}T00:00:00Z`).getTime() / 1000);
   const period2 = Math.floor(Date.now() / 1000) + 86400;
@@ -94,7 +133,8 @@ async function fetchYahooChart(yahooTicker, startDateIso) {
         .filter(Boolean)
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      return { bars, splits };
+      const repairedBars = repairIncompleteSplitBackfill(bars, splits);
+      return { bars: repairedBars, splits };
     } catch (err) {
       lastError = err;
       await sleep(800 * (attempt + 1));

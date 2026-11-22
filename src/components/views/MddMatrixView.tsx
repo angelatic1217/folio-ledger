@@ -3,13 +3,25 @@
 import { useMemo, useState } from "react";
 import { SymbolUnderwaterChart } from "@/components/charts/SymbolUnderwaterChart";
 import { Badge, Card } from "@/components/ui/primitives";
+import { applyMddLookback } from "@/lib/quant/drawdown";
 import { formatPercent, formatPrice } from "@/lib/utils";
-import type { MddMatrixRow, MddSignalLevel, MddThresholds } from "@/types/quant";
+import type {
+  MddLookbackPreset,
+  MddMatrixRow,
+  MddSignalLevel,
+  MddThresholds,
+} from "@/types/quant";
 
 interface MddMatrixViewProps {
   rows: MddMatrixRow[];
   thresholds: MddThresholds;
 }
+
+const LOOKBACK_OPTIONS: Array<{ key: MddLookbackPreset; label: string }> = [
+  { key: "5Y", label: "近 5 年" },
+  { key: "10Y", label: "近 10 年" },
+  { key: "MAX", label: "上市以來 (MAX)" },
+];
 
 const SIGNAL_META: Record<
   MddSignalLevel,
@@ -22,14 +34,20 @@ const SIGNAL_META: Record<
 };
 
 export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
+  const [lookback, setLookback] = useState<MddLookbackPreset>("MAX");
   const [marketFilter, setMarketFilter] = useState<
     "ALL" | "HELD" | "TW" | "US" | "WATCH"
   >("ALL");
   const [sortBy, setSortBy] = useState<"dd-asc" | "ratio-desc" | "weight-desc">("dd-asc");
   const [selectedSymbol, setSelectedSymbol] = useState<string>(rows[0]?.symbol ?? "");
 
+  const scopedRows = useMemo(
+    () => applyMddLookback(rows, lookback, thresholds),
+    [rows, lookback, thresholds]
+  );
+
   const filteredRows = useMemo(() => {
-    const list = rows.filter((r) => {
+    const list = scopedRows.filter((r) => {
       if (marketFilter === "HELD") return r.held;
       if (marketFilter === "TW") return r.market === "TW";
       if (marketFilter === "US") return r.market === "US";
@@ -42,12 +60,15 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
       if (sortBy === "ratio-desc") return b.mddRatioPct - a.mddRatioPct;
       return b.weightPct - a.weightPct;
     });
-  }, [rows, marketFilter, sortBy]);
+  }, [scopedRows, marketFilter, sortBy]);
 
   const activeRow =
     filteredRows.find((r) => r.symbol === selectedSymbol) ??
     filteredRows[0] ??
     null;
+
+  const lookbackLabel =
+    LOOKBACK_OPTIONS.find((o) => o.key === lookback)?.label ?? "上市以來";
 
   return (
     <div className="space-y-5">
@@ -63,6 +84,22 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1">
+            {LOOKBACK_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setLookback(opt.key)}
+                className={`rounded-md px-2.5 py-1 transition cursor-pointer ${
+                  lookback === opt.key
+                    ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <select
             value={marketFilter}
             onChange={(e) => setMarketFilter(e.target.value as typeof marketFilter)}
@@ -97,7 +134,9 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                 <th className="px-3 py-3 text-right font-semibold">最新收盤價</th>
                 <th className="px-3 py-3 text-right font-semibold">歷史含息高點</th>
                 <th className="px-3 py-3 text-right font-semibold">當前水下深度</th>
-                <th className="px-3 py-3 text-right font-semibold">歷史 MDD</th>
+                <th className="px-3 py-3 text-right font-semibold">
+                  歷史 MDD ({lookbackLabel})
+                </th>
                 <th className="min-w-[210px] px-4 py-3 font-semibold">
                   水下水位（vs 歷史 MDD）
                 </th>
@@ -126,6 +165,9 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                       </div>
                       <div className="mt-0.5 text-[var(--muted-foreground)]">
                         {row.name}
+                        <span className="ml-1.5 font-mono text-[0.75rem] opacity-75">
+                          (起自 {row.firstDate.slice(0, 7)})
+                        </span>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums">
@@ -231,13 +273,14 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
                 當前水下：<strong>{formatPercent(activeRow.currentDrawdown)}</strong>
               </span>
               <span className="text-[var(--muted-foreground)]">
-                歷史 MDD：{formatPercent(activeRow.historicalMdd)} ({activeRow.mddDate})
+                歷史 MDD ({lookbackLabel})：{formatPercent(activeRow.historicalMdd)} ({activeRow.mddDate})
               </span>
             </div>
           </div>
           <SymbolUnderwaterChart
             series={activeRow.underwaterSeries}
             historicalMdd={activeRow.historicalMdd}
+            mddDate={activeRow.mddDate}
           />
         </Card>
       )}

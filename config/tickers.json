@@ -1,5 +1,5 @@
 {
-  "startDate": "2020-01-01",
+  "startDate": "1999-01-01",
   "fxTicker": "TWD=X",
   "tickers": [
     { "symbol": "0050", "yahooTicker": "0050.TW", "name": "元大台灣50", "market": "TW", "currency": "TWD" },

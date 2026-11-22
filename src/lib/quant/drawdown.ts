@@ -1,13 +1,14 @@
 import type { MarketDataBundle } from "@/types/market";
 import type {
   DrawdownSummary,
+  MddLookbackPreset,
   MddMatrixRow,
   MddSignalLevel,
   MddThresholds,
   SymbolUnderwaterPoint,
 } from "@/types/quant";
 import type { Asset } from "@/types/sheet";
-import { diffCalendarDays } from "./calendar";
+import { addDaysIso, diffCalendarDays } from "./calendar";
 import type { HoldingPosition } from "./holdings";
 
 export const DEFAULT_MDD_THRESHOLDS: MddThresholds = {
@@ -212,6 +213,7 @@ export function buildMddMatrix(params: {
       yahooTicker: tickerData.yahooTicker || asset.yahooTicker,
       held: isHeld,
       shares: heldShares,
+      firstDate: tickerData.bars[0].date,
       latestPrice: lastBar.close,
       latestDate: lastBar.date,
       peakAdjPrice: lastDd.peak,
@@ -231,4 +233,55 @@ export function buildMddMatrix(params: {
   }
 
   return rows.sort((a, b) => a.currentDrawdown - b.currentDrawdown);
+}
+
+/**
+ * Recomputes MDD matrix metrics over a selected lookback window ("5Y" | "10Y" | "MAX")
+ * without re-running the full portfolio engine.
+ */
+export function applyMddLookback(
+  rows: MddMatrixRow[],
+  lookback: MddLookbackPreset,
+  thresholds: MddThresholds = DEFAULT_MDD_THRESHOLDS
+): MddMatrixRow[] {
+  if (lookback === "MAX") return rows;
+
+  const lookbackDays = lookback === "5Y" ? 365 * 5 : 365 * 10;
+
+  return rows.map((row) => {
+    if (row.underwaterSeries.length === 0) return row;
+    const cutoff = addDaysIso(row.latestDate, -lookbackDays);
+    const sliced = row.underwaterSeries.filter((pt) => pt.date >= cutoff);
+    const effective = sliced.length >= 2 ? sliced : row.underwaterSeries;
+
+    const { series, summary } = computeDrawdownSeries(
+      effective.map((pt) => ({ date: pt.date, value: pt.adjClose }))
+    );
+
+    const lastDd = series[series.length - 1];
+    const mddRatioPct =
+      summary.maxDrawdown < -1e-6
+        ? Math.min(
+            100,
+            Math.round((summary.currentDrawdown / summary.maxDrawdown) * 100)
+          )
+        : 0;
+
+    return {
+      ...row,
+      peakAdjPrice: lastDd.peak,
+      peakDate: lastDd.peakDate,
+      currentDrawdown: summary.currentDrawdown,
+      historicalMdd: summary.maxDrawdown,
+      mddDate: summary.maxDrawdownDate,
+      mddRatioPct,
+      daysUnderwater: summary.currentDaysUnderwater,
+      signal: classifyMddSignal(summary.currentDrawdown, thresholds),
+      underwaterSeries: series.map((pt) => ({
+        date: pt.date,
+        drawdown: pt.drawdown,
+        adjClose: pt.value,
+      })),
+    };
+  });
 }
