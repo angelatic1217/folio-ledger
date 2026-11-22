@@ -22,12 +22,15 @@ const SIGNAL_META: Record<
 };
 
 export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
-  const [marketFilter, setMarketFilter] = useState<"ALL" | "TW" | "US" | "WATCH">("ALL");
+  const [marketFilter, setMarketFilter] = useState<
+    "ALL" | "HELD" | "TW" | "US" | "WATCH"
+  >("ALL");
   const [sortBy, setSortBy] = useState<"dd-asc" | "ratio-desc" | "weight-desc">("dd-asc");
   const [selectedSymbol, setSelectedSymbol] = useState<string>(rows[0]?.symbol ?? "");
 
   const filteredRows = useMemo(() => {
     const list = rows.filter((r) => {
+      if (marketFilter === "HELD") return r.held;
       if (marketFilter === "TW") return r.market === "TW";
       if (marketFilter === "US") return r.market === "US";
       if (marketFilter === "WATCH") return !r.held;
@@ -65,10 +68,11 @@ export function MddMatrixView({ rows, thresholds }: MddMatrixViewProps) {
             onChange={(e) => setMarketFilter(e.target.value as typeof marketFilter)}
             className="h-8 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 text-xs text-[var(--foreground)] cursor-pointer"
           >
-            <option value="ALL">全部市場</option>
+            <option value="ALL">全部標的</option>
+            <option value="HELD">僅看目前持有</option>
             <option value="TW">僅看台股 (TW)</option>
             <option value="US">僅看美股 (US)</option>
-            <option value="WATCH">僅看觀察未持有</option>
+            <option value="WATCH">僅看觀察 / 已清倉</option>
           </select>
 
           <select

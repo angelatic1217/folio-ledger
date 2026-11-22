@@ -4,10 +4,14 @@
   "tickers": [
     { "symbol": "0050", "yahooTicker": "0050.TW", "name": "元大台灣50", "market": "TW", "currency": "TWD" },
     { "symbol": "006208", "yahooTicker": "006208.TW", "name": "富邦台50", "market": "TW", "currency": "TWD" },
+    { "symbol": "0056", "yahooTicker": "0056.TW", "name": "元大高股息", "market": "TW", "currency": "TWD" },
     { "symbol": "2330", "yahooTicker": "2330.TW", "name": "台積電", "market": "TW", "currency": "TWD" },
     { "symbol": "QQQ", "yahooTicker": "QQQ", "name": "Invesco QQQ Trust", "market": "US", "currency": "USD" },
     { "symbol": "VOO", "yahooTicker": "VOO", "name": "Vanguard S&P 500", "market": "US", "currency": "USD" },
     { "symbol": "VT", "yahooTicker": "VT", "name": "Vanguard Total World", "market": "US", "currency": "USD" },
+    { "symbol": "VXUS", "yahooTicker": "VXUS", "name": "Vanguard Total Intl Stock", "market": "US", "currency": "USD" },
+    { "symbol": "VALU.LON", "yahooTicker": "VALU.L", "name": "Vanguard Global All-Cap UCITS (USD Acc)", "market": "US", "currency": "USD" },
+    { "symbol": "NVDA", "yahooTicker": "NVDA", "name": "NVIDIA", "market": "US", "currency": "USD" },
     { "symbol": "AOA", "yahooTicker": "AOA", "name": "iShares 股債平衡 ETF", "market": "US", "currency": "USD" },
     { "symbol": "SOXX", "yahooTicker": "SOXX", "name": "iShares 半導體 ETF", "market": "US", "currency": "USD" },
     { "symbol": "TWII", "yahooTicker": "^TWII", "name": "台灣加權指數", "market": "TW", "currency": "TWD" }

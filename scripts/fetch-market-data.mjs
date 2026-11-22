@@ -146,6 +146,7 @@ async function main() {
       const last = bars[bars.length - 1];
       tickers[item.symbol] = {
         symbol: item.symbol,
+        name: item.name,
         yahooTicker: item.yahooTicker,
         currency: item.currency,
         lastPrice: last.close,

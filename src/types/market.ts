@@ -13,6 +13,7 @@ export interface SplitEvent {
 
 export interface TickerMarketData {
   symbol: string;
+  name?: string;
   yahooTicker: string;
   currency: CurrencyCode;
   lastPrice: number;

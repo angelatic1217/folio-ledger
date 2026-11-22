@@ -222,4 +222,57 @@ describe("Quant Engine: Core Financial Formulas", () => {
     expect(period.holdings[0].twdReturn).toBeCloseTo(0.21, 6);
     expect(period.holdings[0].fxImpact).toBeCloseTo(0.11, 6);
   });
+
+  it("anchors inception-year Modified Dietz to first active date instead of Jan 1", () => {
+    const market: MarketDataBundle = {
+      generatedAt: "2024-12-31",
+      fxTicker: "TWD=X",
+      fxBars: [
+        { date: "2024-12-24", close: 32, adjClose: 32 },
+        { date: "2024-12-31", close: 32, adjClose: 32 },
+      ],
+      tickers: {
+        VOO: {
+          symbol: "VOO",
+          yahooTicker: "VOO",
+          currency: "USD",
+          lastPrice: 510,
+          lastDate: "2024-12-31",
+          splits: [],
+          bars: [
+            { date: "2024-12-24", close: 500, adjClose: 500 },
+            { date: "2024-12-31", close: 510, adjClose: 510 }, // +2% in 7 days
+          ],
+        },
+      },
+    };
+
+    const sheets: PortfolioSheetsData = {
+      source: "demo",
+      assets: [
+        {
+          symbol: "VOO",
+          name: "VOO",
+          market: "US",
+          currency: "USD",
+          yahooTicker: "VOO",
+          monitorMdd: true,
+        },
+      ],
+      transactions: [
+        { id: "1", date: "2024-12-24", symbol: "VOO", type: "BUY", shares: 10, price: 500, fee: 0, fxRate: 32 },
+      ],
+      cashSnapshots: [],
+      benchmarks: [
+        { symbol: "VOO", name: "VOO", yahooTicker: "VOO", currency: "USD", scope: "US" },
+      ],
+    };
+
+    const out = runQuantEngine(sheets, market);
+    const us2024 = out.annualByScope.US[0];
+    // Should be exact +2%, NOT ~100%+ distorted by 358 empty days before Dec 24!
+    expect(us2024.modifiedDietz).toBeCloseTo(0.02, 5);
+    expect(us2024.twr).toBeCloseTo(0.02, 5);
+    expect(us2024.benchmarkReturn).toBeCloseTo(0.02, 5);
+  });
 });

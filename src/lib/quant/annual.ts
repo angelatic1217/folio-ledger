@@ -132,7 +132,15 @@ export function computeAnnualPerformanceByScope(params: {
         continue;
       }
 
-      const periodStartDate = prevPt ? prevPt.date : `${year}-01-01`;
+      // When a scope starts mid-year (startValueTwd === 0, e.g., first buy on 2020-08-26 or 2024-12-24),
+      // anchor the period start to the first active transaction date in that scope & year so Modified Dietz
+      // weights and benchmark returns are not distorted by empty pre-inception months.
+      const firstActiveScopeDate =
+        scopeTxs.length > 0
+          ? [...scopeTxs].sort((a, b) => a.date.localeCompare(b.date))[0].date
+          : yearPoints[0].date;
+      const periodStartDate =
+        prevPt && startValueTwd > 1e-6 ? prevPt.date : firstActiveScopeDate;
       const periodEndDate = lastPt.date <= yearEndCap ? lastPt.date : yearEndCap;
 
       const modifiedDietz = computeModifiedDietz({

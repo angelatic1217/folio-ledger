@@ -211,7 +211,10 @@ export function computePeriodPerformance(params: {
 
     holdings.push({
       symbol,
-      name: asset?.name ?? symbol,
+      name:
+        asset?.name && asset.name !== symbol
+          ? asset.name
+          : market.tickers[symbol]?.name ?? symbol,
       market: marketCode,
       currency,
       startShares,

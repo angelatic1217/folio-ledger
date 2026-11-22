@@ -203,10 +203,13 @@ export function buildMddMatrix(params: {
 
     rows.push({
       symbol: asset.symbol,
-      name: asset.name,
+      name:
+        asset.name && asset.name !== asset.symbol
+          ? asset.name
+          : tickerData.name ?? asset.symbol,
       market: asset.market,
       currency: asset.currency,
-      yahooTicker: asset.yahooTicker,
+      yahooTicker: tickerData.yahooTicker || asset.yahooTicker,
       held: isHeld,
       shares: heldShares,
       latestPrice: lastBar.close,
