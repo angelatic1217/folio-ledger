@@ -19,6 +19,7 @@ interface LoanAmortizationChartProps {
   monthsElapsed: number;
   currency: CurrencyCode;
   fxRate: number;
+  height?: number;
 }
 
 export function LoanAmortizationChart({
@@ -26,6 +27,7 @@ export function LoanAmortizationChart({
   monthsElapsed,
   currency,
   fxRate,
+  height = 260,
 }: LoanAmortizationChartProps) {
   if (schedule.length === 0) {
     return (
@@ -54,7 +56,7 @@ export function LoanAmortizationChart({
   };
 
   return (
-    <div className="h-[260px] w-full">
+    <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 18, left: 6, bottom: 5 }}>
           <defs>
