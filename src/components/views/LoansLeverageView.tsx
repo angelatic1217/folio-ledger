@@ -332,17 +332,31 @@ export function LoansLeverageView({
                         }`}
                       >
                         <td className="px-3 py-2.5 text-left font-sans">
-                          <div className="font-semibold text-[var(--foreground)]">
-                            {f.name}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {f.name}
+                            </span>
+                            {f.status === "refinanced" ? (
+                              <Badge variant="muted">已借新還舊結清</Badge>
+                            ) : f.status === "closed" ? (
+                              <Badge variant="muted">已結清</Badge>
+                            ) : f.refinancedPayoffTwd > 0 ? (
+                              <Badge variant="default">借新還舊進行中</Badge>
+                            ) : (
+                              <Badge variant="success">還款中</Badge>
+                            )}
                           </div>
                           <div className="text-[0.7rem] text-[var(--muted-foreground)] font-mono">
-                            #{f.fundingTag} · {f.startDate} ({f.holdingDays}天)
+                            #{f.fundingTag} · {f.startDate}
+                            {f.closedDate ? ` → ${f.closedDate} 結清` : ` (${f.holdingDays}天)`}
                           </div>
                         </td>
                         <td className="px-3 py-2.5 tabular-nums">
                           <div>{(f.apr * 100).toFixed(2)}%</div>
                           <div className="text-[0.7rem] text-[var(--muted-foreground)]">
-                            已繳 {f.monthsElapsed}/{f.termMonths} 期
+                            {f.status === "active"
+                              ? `已繳 ${f.monthsElapsed}/${f.termMonths} 期`
+                              : `已繳 ${f.monthsElapsed} 期後結清`}
                           </div>
                         </td>
                         <td className="px-3 py-2.5 tabular-nums">
@@ -505,17 +519,48 @@ export function LoansLeverageView({
 
                 <div className="grid grid-cols-2 gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/30 p-3 text-xs">
                   <div>
-                    <div className="text-[var(--muted-foreground)]">核貸 / 實撥本金</div>
+                    <div className="text-[var(--muted-foreground)]">
+                      {selectedFacility.refinancedPayoffTwd > 0
+                        ? "核貸總本金（含代償舊貸）"
+                        : "核貸 / 實撥本金"}
+                    </div>
                     <div className="font-mono font-semibold tabular-nums">
-                      {formatMoney(selectedFacility.principalTwd, "TWD", fx)} /{" "}
-                      {formatMoney(selectedFacility.disbursedTwd, "TWD", fx)}
+                      {selectedFacility.refinancedPayoffTwd > 0 ? (
+                        <>
+                          {formatMoney(selectedFacility.principalTwd, "TWD", fx)}
+                          <span className="block text-[0.7rem] font-normal text-[var(--muted-foreground)]">
+                            代償 {formatMoney(selectedFacility.refinancedPayoffTwd, "TWD", fx)} + 新撥{" "}
+                            {formatMoney(selectedFacility.disbursedTwd, "TWD", fx)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {formatMoney(selectedFacility.principalTwd, "TWD", fx)} /{" "}
+                          {formatMoney(selectedFacility.disbursedTwd, "TWD", fx)}
+                        </>
+                      )}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[var(--muted-foreground)]">月繳 / 已還本金</div>
+                    <div className="text-[var(--muted-foreground)]">
+                      {selectedFacility.status === "active"
+                        ? "月繳 / 剩餘本金"
+                        : "結清金額 / 目前負債"}
+                    </div>
                     <div className="font-mono font-semibold tabular-nums">
-                      {formatMoney(selectedFacility.monthlyPaymentTwd, "TWD", fx)} /{" "}
-                      {formatMoney(selectedFacility.repaidPrincipalToDateTwd, "TWD", fx)}
+                      {selectedFacility.status === "active" ? (
+                        <>
+                          {formatMoney(selectedFacility.activeMonthlyPaymentTwd, "TWD", fx)} /{" "}
+                          {formatMoney(selectedFacility.remainingPrincipalTwd, "TWD", fx)}
+                        </>
+                      ) : (
+                        <>
+                          {selectedFacility.payoffTwd
+                            ? formatMoney(selectedFacility.payoffTwd, "TWD", fx)
+                            : "已結清"}{" "}
+                          / NT$ 0
+                        </>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -630,10 +675,18 @@ export function LoansLeverageView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-bold">
-                      本息攤還進度圖（{selectedFacility.termMonths} 期）
+                      {selectedFacility.status === "active"
+                        ? `本息攤還進度圖（${selectedFacility.termMonths} 期）`
+                        : `歷史還款紀錄（已繳 ${selectedFacility.monthsElapsed} 期後結清）`}
                     </h3>
                     <p className="text-xs text-[var(--muted-foreground)]">
-                      藍區：剩餘本金遞減 · 橘區：累積利息支出 · 綠虛線：目前進度（第 {selectedFacility.monthsElapsed} 期）
+                      {selectedFacility.status === "active"
+                        ? `藍區：剩餘本金遞減 · 橘區：累積利息支出 · 綠虛線：目前進度（第 ${selectedFacility.monthsElapsed} 期）`
+                        : `已於 ${selectedFacility.closedDate ?? "—"} 借新還舊結清（結清金額 ${
+                            selectedFacility.payoffTwd
+                              ? formatMoney(selectedFacility.payoffTwd, "TWD", fx)
+                              : "—"
+                          }），剩餘負債已歸零`}
                     </p>
                   </div>
                   <Button
@@ -647,7 +700,7 @@ export function LoansLeverageView({
                       </>
                     ) : (
                       <>
-                        <ChevronDown className="h-3.5 w-3.5" /> 展開全部 {selectedFacility.termMonths} 期
+                        <ChevronDown className="h-3.5 w-3.5" /> 展開全部 {selectedFacility.schedule.length} 期
                       </>
                     )}
                   </Button>

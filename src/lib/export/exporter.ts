@@ -442,6 +442,10 @@ export function buildSheetTabCsv(
         "term_months",
         "monthly_payment_twd",
         "total_interest_twd",
+        "status",
+        "closed_date",
+        "payoff_twd",
+        "refinanced_payoff_twd",
         "note",
       ],
       (sheets.loans ?? []).map((l) => [
@@ -457,6 +461,10 @@ export function buildSheetTabCsv(
         l.termMonths,
         l.monthlyPaymentTwd ?? "",
         l.totalInterestOverrideTwd ?? "",
+        l.status ?? "active",
+        l.closedDate ?? "",
+        l.payoffTwd ?? "",
+        l.refinancedPayoffTwd ?? "",
         l.note ?? "",
       ])
     );

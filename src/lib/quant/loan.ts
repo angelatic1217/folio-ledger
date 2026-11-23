@@ -6,7 +6,7 @@ import type {
   PortfolioLeverageSummary,
   QuantEngineOutput,
 } from "@/types/quant";
-import type { Asset, LoanFacility, PortfolioSheetsData, Transaction } from "@/types/sheet";
+import type { Asset, LoanFacility, LoanStatus, PortfolioSheetsData, Transaction } from "@/types/sheet";
 import { diffCalendarDays, findBarOnOrBefore } from "./calendar";
 import { computeHoldingsAsOf } from "./holdings";
 import { computeAnnualizedReturn } from "./returns";
@@ -74,9 +74,16 @@ export function computeEffectiveApr(params: {
   return ((lo + hi) / 2) * 12;
 }
 
+export function resolveLoanStatus(loan: LoanFacility): LoanStatus {
+  if (loan.status) return loan.status;
+  return loan.closedDate ? "refinanced" : "active";
+}
+
 /**
- * Generates a full period-by-period amortization schedule (PPMT, IPMT, remaining balance)
- * and marks each installment as paid if its paymentDate <= asOfDate.
+ * Generates a period-by-period amortization schedule (PPMT, IPMT, remaining balance)
+ * and marks each installment as paid if its paymentDate <= effective date.
+ * For refinanced / closed loans, truncates the schedule at closedDate so phantom
+ * post-payoff installments are excluded.
  */
 export function buildAmortizationSchedule(
   loan: LoanFacility,
@@ -85,6 +92,12 @@ export function buildAmortizationSchedule(
   const n = Math.max(1, Math.round(loan.termMonths));
   const r = Math.max(0, loan.apr) / 12;
   const formulaPmt = computeMonthlyPayment(loan.principalTwd, loan.apr, n);
+  const status = resolveLoanStatus(loan);
+  const isClosed = status === "refinanced" || status === "closed";
+  const effectiveDate =
+    isClosed && loan.closedDate && loan.closedDate < asOfDate
+      ? loan.closedDate
+      : asOfDate;
 
   const rawRows: Array<{
     period: number;
@@ -112,9 +125,9 @@ export function buildAmortizationSchedule(
     });
   }
 
-  // If caller provided a contract full-term interest override (e.g. incremental refinance top-up),
-  // scale period interest proportionally so cumulative interest matches contract total exactly.
+  // Only scale active-loan full schedule when an explicit contract total interest override is provided
   const interestScale =
+    !isClosed &&
     loan.totalInterestOverrideTwd &&
     loan.totalInterestOverrideTwd > 0 &&
     rawTotalInterest > 1e-6
@@ -124,7 +137,7 @@ export function buildAmortizationSchedule(
   let cumPrincipal = 0;
   let cumInterest = 0;
 
-  return rawRows.map((row) => {
+  const fullSchedule = rawRows.map((row) => {
     const scaledInterest = row.interestTwd * interestScale;
     const paymentTwd =
       loan.monthlyPaymentTwd && loan.monthlyPaymentTwd > 0
@@ -141,9 +154,14 @@ export function buildAmortizationSchedule(
       cumulativePrincipalTwd: cumPrincipal,
       cumulativeInterestTwd: cumInterest,
       remainingPrincipalTwd: row.remainingPrincipalTwd,
-      paid: row.paymentDate <= asOfDate,
+      paid: row.paymentDate <= effectiveDate,
     };
   });
+
+  if (isClosed) {
+    return fullSchedule.filter((row) => row.paid);
+  }
+  return fullSchedule;
 }
 
 /**
@@ -243,16 +261,38 @@ export function computeLoanFacilitySummary(params: {
       ? totalCostTwd / loan.receivedUsd
       : null;
 
-  // Amortization schedule & interest tracking
+  // Amortization schedule & interest tracking (handles active vs refinanced/closed loans)
+  const status = resolveLoanStatus(loan);
+  const isClosed = status === "refinanced" || status === "closed";
+  const refinancedPayoffTwd = loan.refinancedPayoffTwd ?? 0;
+
   const schedule = buildAmortizationSchedule(loan, asOfDate);
   const paidRows = schedule.filter((r) => r.paid);
   const lastPaid = paidRows[paidRows.length - 1];
   const monthsElapsed = paidRows.length;
-  const accruedInterestToDateTwd = lastPaid?.cumulativeInterestTwd ?? 0;
-  const repaidPrincipalToDateTwd = lastPaid?.cumulativePrincipalTwd ?? 0;
-  const remainingPrincipalTwd = lastPaid
+  const accruedScheduleInterest = lastPaid?.cumulativeInterestTwd ?? 0;
+  const repaidPrincipalBeforePayoff = lastPaid?.cumulativePrincipalTwd ?? 0;
+  const remainingBeforePayoff = lastPaid
     ? lastPaid.remainingPrincipalTwd
     : loan.principalTwd;
+
+  // If closed/refinanced, any payoff excess above scheduled remaining principal is stub interest / early payoff fee
+  const payoffStubChargeTwd =
+    isClosed && loan.payoffTwd && loan.payoffTwd > remainingBeforePayoff
+      ? loan.payoffTwd - remainingBeforePayoff
+      : 0;
+
+  const accruedInterestToDateTwd = isClosed
+    ? loan.totalInterestOverrideTwd && loan.totalInterestOverrideTwd > 0
+      ? loan.totalInterestOverrideTwd
+      : accruedScheduleInterest + payoffStubChargeTwd
+    : accruedScheduleInterest;
+
+  const repaidPrincipalToDateTwd = isClosed
+    ? loan.principalTwd
+    : repaidPrincipalBeforePayoff;
+
+  const remainingPrincipalTwd = isClosed ? 0 : remainingBeforePayoff;
 
   const formulaMonthly = computeMonthlyPayment(
     loan.principalTwd,
@@ -263,14 +303,19 @@ export function computeLoanFacilitySummary(params: {
     loan.monthlyPaymentTwd && loan.monthlyPaymentTwd > 0
       ? loan.monthlyPaymentTwd
       : formulaMonthly;
+  const activeMonthlyPaymentTwd = isClosed ? 0 : monthlyPaymentTwd;
 
-  const fullTermInterestTwd =
-    loan.totalInterestOverrideTwd && loan.totalInterestOverrideTwd > 0
+  const fullTermInterestTwd = isClosed
+    ? accruedInterestToDateTwd
+    : loan.totalInterestOverrideTwd && loan.totalInterestOverrideTwd > 0
       ? loan.totalInterestOverrideTwd
       : schedule[schedule.length - 1]?.cumulativeInterestTwd ?? 0;
 
+  // For refinance loans, total net bank funding = cash disbursed + payoff of prior loan
+  // so that the refinanced payoff amount is NOT mistakenly treated as an origination fee.
+  const bankNetFundingTwd = loan.disbursedTwd + refinancedPayoffTwd;
   const effectiveApr = computeEffectiveApr({
-    netDisbursed: Math.max(1, loan.disbursedTwd - loan.wireFeeTwd),
+    netDisbursed: Math.max(1, bankNetFundingTwd - loan.wireFeeTwd),
     monthlyPayment: formulaMonthly,
     termMonths: loan.termMonths,
   });
@@ -306,7 +351,11 @@ export function computeLoanFacilitySummary(params: {
     id: loan.id,
     name: loan.name,
     fundingTag: loan.fundingTag,
+    status,
     startDate: loan.startDate,
+    closedDate: loan.closedDate ?? null,
+    payoffTwd: loan.payoffTwd ?? null,
+    refinancedPayoffTwd,
     holdingDays,
     principalTwd: loan.principalTwd,
     disbursedTwd: loan.disbursedTwd,
@@ -319,6 +368,7 @@ export function computeLoanFacilitySummary(params: {
     termMonths: loan.termMonths,
     monthsElapsed,
     monthlyPaymentTwd,
+    activeMonthlyPaymentTwd,
     fullTermInterestTwd,
     accruedInterestToDateTwd,
     repaidPrincipalToDateTwd,
@@ -380,11 +430,15 @@ export function computePortfolioLeverageSummary(params: {
   let totalLoanEquityPnlTwd = 0;
 
   for (const f of facilities) {
-    totalPrincipalTwd += f.principalTwd;
+    // Only count active loans in current principal, monthly outflow, and weighted APR
+    // so refinanced / paid-off loans are never double-counted in debt!
+    if (f.status === "active") {
+      totalPrincipalTwd += f.principalTwd;
+      weightedAprNum += f.principalTwd * f.apr;
+    }
+    totalMonthlyPaymentTwd += f.activeMonthlyPaymentTwd;
     totalCostTwd += f.totalCostTwd;
     totalReceivedUsd += f.receivedUsd ?? 0;
-    totalMonthlyPaymentTwd += f.monthlyPaymentTwd;
-    weightedAprNum += f.principalTwd * f.apr;
     totalFullTermInterestTwd += f.fullTermInterestTwd;
     totalAccruedInterestTwd += f.accruedInterestToDateTwd;
     totalRemainingDebtTwd += f.remainingPrincipalTwd;

@@ -1,4 +1,4 @@
-import type { BenchmarkScope, CurrencyCode, MarketCode } from "./sheet";
+import type { BenchmarkScope, CurrencyCode, LoanStatus, MarketCode } from "./sheet";
 
 export type PortfolioScope = "invested" | "total";
 export type TimeRangePreset = "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "ALL";
@@ -173,23 +173,28 @@ export interface LoanFacilitySummary {
   id: string;
   name: string;
   fundingTag: string;
+  status: LoanStatus;
   startDate: string;
+  closedDate: string | null;
+  payoffTwd: number | null;
+  refinancedPayoffTwd: number;
   holdingDays: number;
   principalTwd: number;
   disbursedTwd: number;
   wireFeeTwd: number;
-  totalCostTwd: number; // disbursedTwd + wireFeeTwd
+  totalCostTwd: number; // disbursedTwd + wireFeeTwd (new capital invested)
   receivedUsd: number | null;
   avgEntryFxRate: number | null; // totalCostTwd / receivedUsd
   apr: number;
   effectiveApr: number; // True APR including origination + wire fees
   termMonths: number;
   monthsElapsed: number;
-  monthlyPaymentTwd: number;
-  fullTermInterestTwd: number;
+  monthlyPaymentTwd: number; // Contract monthly installment
+  activeMonthlyPaymentTwd: number; // 0 when closed/refinanced; monthlyPaymentTwd when active
+  fullTermInterestTwd: number; // Actual paid interest+payoff cost if closed/refinanced, else full-term interest
   accruedInterestToDateTwd: number;
   repaidPrincipalToDateTwd: number;
-  remainingPrincipalTwd: number;
+  remainingPrincipalTwd: number; // 0 when closed/refinanced
   holdingsValueTwd: number;
   residualCashUsd: number;
   totalValueTwd: number;

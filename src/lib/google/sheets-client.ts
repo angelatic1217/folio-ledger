@@ -167,8 +167,8 @@ export async function syncPrivateGoogleSheet(params: {
       fetchSheetRange(sheetId, "assets!A:H", token),
       fetchSheetRange(sheetId, "cash_snapshots!A:F", token),
       fetchSheetRange(sheetId, "benchmarks!A:F", token),
-      fetchSheetRange(sheetId, "loans!A:N", token),
-      fetchSheetRange(sheetId, "信貸方案!A:N", token),
+      fetchSheetRange(sheetId, "loans!A:Q", token),
+      fetchSheetRange(sheetId, "信貸方案!A:Q", token),
     ]);
 
   const transactions = parseTransactionsGrid(txGrid);

@@ -5,6 +5,7 @@ import type {
   CashSnapshot,
   CurrencyCode,
   LoanFacility,
+  LoanStatus,
   MarketCode,
   Transaction,
   TransactionType,
@@ -347,6 +348,20 @@ export function parseBenchmarksGrid(grid: unknown[][]): BenchmarkConfig[] {
   return result;
 }
 
+function parseLoanStatus(val: unknown, hasClosedDate: boolean): LoanStatus {
+  const s = String(val ?? "").trim().toLowerCase();
+  if (s === "refinanced" || s === "借新還舊" || s === "已轉貸" || s === "轉貸結清" || s === "代償結清") {
+    return "refinanced";
+  }
+  if (s === "closed" || s === "已結清" || s === "已清償" || s === "結清") {
+    return "closed";
+  }
+  if (s === "active" || s === "進行中" || s === "還款中") {
+    return "active";
+  }
+  return hasClosedDate ? "refinanced" : "active";
+}
+
 export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
   if (grid.length < 2) return [];
   const headers = grid[0].map((h) => normalizeHeader(String(h ?? "")));
@@ -356,7 +371,7 @@ export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
   const iTag = findCol(headers, ["funding_tag", "tag", "資金來源標籤", "資金來源", "標籤"]);
   const iStartDate = findCol(headers, ["start_date", "撥款日", "起始日", "日期"]);
   const iPrincipal = findCol(headers, ["principal_twd", "principal", "核貸本金", "核貸總本金", "本金"]);
-  const iDisbursed = findCol(headers, ["disbursed_twd", "disbursed", "實撥金額", "實際撥款金額"]);
+  const iDisbursed = findCol(headers, ["disbursed_twd", "disbursed", "實撥金額", "實際撥款金額", "實際到款"]);
   const iWireFee = findCol(headers, ["wire_fee_twd", "wire_fee", "匯費", "規費"]);
   const iReceivedUsd = findCol(headers, ["received_usd", "實收美金", "券商實收到款"]);
   const iApr = findCol(headers, ["apr", "年利率", "利率"]);
@@ -367,6 +382,15 @@ export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
     "total_interest_override_twd",
     "全期總利息",
     "總利息",
+  ]);
+  const iStatus = findCol(headers, ["status", "狀態", "貸款狀態"]);
+  const iClosedDate = findCol(headers, ["closed_date", "結清日", "代償日", "結束日"]);
+  const iPayoff = findCol(headers, ["payoff_twd", "結清金額", "清償金額"]);
+  const iRefiPayoff = findCol(headers, [
+    "refinanced_payoff_twd",
+    "代償舊貸金額",
+    "借新還舊代償",
+    "代償金額",
   ]);
   const iNote = findCol(headers, ["note", "備註", "說明"]);
 
@@ -402,6 +426,10 @@ export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
     const rawMonthly = iMonthly >= 0 ? Math.abs(parseNumber(row[iMonthly])) : 0;
     const rawTotalInterest =
       iTotalInterest >= 0 ? Math.abs(parseNumber(row[iTotalInterest])) : 0;
+    const closedDate = iClosedDate >= 0 ? parseDate(row[iClosedDate]) : "";
+    const status = parseLoanStatus(iStatus >= 0 ? row[iStatus] : "", Boolean(closedDate));
+    const rawPayoff = iPayoff >= 0 ? Math.abs(parseNumber(row[iPayoff])) : 0;
+    const rawRefiPayoff = iRefiPayoff >= 0 ? Math.abs(parseNumber(row[iRefiPayoff])) : 0;
     const note = iNote >= 0 ? String(row[iNote] ?? "").trim() : undefined;
 
     result.push({
@@ -417,6 +445,10 @@ export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
       termMonths,
       monthlyPaymentTwd: rawMonthly > 0 ? rawMonthly : null,
       totalInterestOverrideTwd: rawTotalInterest > 0 ? rawTotalInterest : null,
+      status,
+      closedDate: closedDate || null,
+      payoffTwd: rawPayoff > 0 ? rawPayoff : null,
+      refinancedPayoffTwd: rawRefiPayoff > 0 ? rawRefiPayoff : null,
       note: note || undefined,
     });
   }

@@ -227,4 +227,118 @@ describe("Loan Amortization, Leverage Risk & Parser Extensions", () => {
     expect(res.monthlyPaymentTwd).toBeCloseTo(27239.8, 1);
     expect(res.finalAdvantageTwd).toBeGreaterThan(400_000);
   });
+
+  it("handles refinance (借新還舊) without double-counting debt, monthly payment, or effective APR", () => {
+    const market: MarketDataBundle = {
+      generatedAt: "2026-11-20",
+      fxTicker: "TWD=X",
+      fxBars: [
+        { date: "2025-07-11", close: 29.04, adjClose: 29.04 },
+        { date: "2026-10-27", close: 32.57, adjClose: 32.57 },
+        { date: "2026-11-20", close: 32.93, adjClose: 32.93 },
+      ],
+      tickers: {
+        VT: {
+          symbol: "VT",
+          yahooTicker: "VT",
+          currency: "USD",
+          lastPrice: 142,
+          lastDate: "2026-11-20",
+          splits: [],
+          bars: [
+            { date: "2025-07-11", close: 130, adjClose: 130 },
+            { date: "2026-11-20", close: 142, adjClose: 142 },
+          ],
+        },
+        "VALU.LON": {
+          symbol: "VALU.LON",
+          yahooTicker: "VALU.L",
+          currency: "USD",
+          lastPrice: 4.55,
+          lastDate: "2026-11-20",
+          splits: [],
+          bars: [
+            { date: "2026-10-27", close: 4.91, adjClose: 4.91 },
+            { date: "2026-11-20", close: 4.55, adjClose: 4.55 },
+          ],
+        },
+      },
+    };
+
+    const sheets: PortfolioSheetsData = {
+      source: "demo",
+      assets: [
+        { symbol: "VT", name: "VT", market: "US", currency: "USD", yahooTicker: "VT", monitorMdd: true },
+        { symbol: "VALU.LON", name: "VALU", market: "US", currency: "USD", yahooTicker: "VALU.L", monitorMdd: true },
+      ],
+      transactions: [
+        { id: "t1", date: "2025-07-11", symbol: "VT", type: "BUY", shares: 500, price: 130, fee: 0, fxRate: 29.04, fundingTag: "loan-old" },
+        { id: "t2", date: "2026-10-27", symbol: "VALU.LON", type: "BUY", shares: 7650, price: 4.91, fee: 0, fxRate: 32.57, fundingTag: "loan-new" },
+      ],
+      cashSnapshots: [],
+      benchmarks: [],
+      loans: [
+        {
+          id: "loan-old",
+          name: "Old Loan (Refinanced)",
+          fundingTag: "loan-old",
+          startDate: "2025-07-11",
+          principalTwd: 2_100_000,
+          disbursedTwd: 2_090_960,
+          wireFeeTwd: 420,
+          receivedUsd: 71_991.17,
+          apr: 0.0246,
+          termMonths: 84,
+          monthlyPaymentTwd: 27_240,
+          status: "refinanced",
+          closedDate: "2026-10-21",
+          payoffTwd: 1_753_923,
+        },
+        {
+          id: "loan-new",
+          name: "New Refinance Loan",
+          fundingTag: "loan-new",
+          startDate: "2026-10-21",
+          principalTwd: 2_980_000,
+          disbursedTwd: 1_224_077,
+          wireFeeTwd: 420,
+          receivedUsd: 37_584.78,
+          apr: 0.0299,
+          termMonths: 84,
+          monthlyPaymentTwd: 39_362,
+          status: "active",
+          refinancedPayoffTwd: 1_753_923,
+        },
+      ],
+    };
+
+    const engine = runQuantEngine(sheets, market);
+    const leverage = computePortfolioLeverageSummary({ sheets, market, engine });
+    const [oldLoan, newLoan] = leverage.facilities;
+
+    // Old loan: closed at month 15, remaining debt = 0, active monthly payment = 0
+    expect(oldLoan.status).toBe("refinanced");
+    expect(oldLoan.monthsElapsed).toBe(15);
+    expect(oldLoan.schedule.length).toBe(15);
+    expect(oldLoan.remainingPrincipalTwd).toBe(0);
+    expect(oldLoan.activeMonthlyPaymentTwd).toBe(0);
+    // Actual interest paid = 15mo schedule interest (~59,594.16) + payoff stub (~2,925.83) = ~62,520
+    expect(oldLoan.fullTermInterestTwd).toBeCloseTo(62_520, 0);
+
+    // New loan: active 2.98M loan, effective APR ~3.01% (NOT inflated by 1.75M payoff!)
+    expect(newLoan.status).toBe("active");
+    expect(newLoan.principalTwd).toBe(2_980_000);
+    expect(newLoan.totalCostTwd).toBe(1_224_497);
+    expect(newLoan.effectiveApr).toBeGreaterThan(0.0299);
+    expect(newLoan.effectiveApr).toBeLessThan(0.0305);
+    expect(newLoan.activeMonthlyPaymentTwd).toBe(39_362);
+
+    // Aggregate debt & monthly outflow MUST reflect ONLY the active 2.98M loan (no double-counting!)
+    expect(leverage.totalPrincipalTwd).toBe(2_980_000);
+    expect(leverage.totalMonthlyPaymentTwd).toBe(39_362);
+    expect(leverage.weightedApr).toBeCloseTo(0.0299, 6);
+    expect(leverage.totalRemainingDebtTwd).toBe(newLoan.remainingPrincipalTwd);
+    // Combined investment cost still equals both tranches' net cash into brokerage
+    expect(leverage.totalCostTwd).toBe(2_091_380 + 1_224_497);
+  });
 });

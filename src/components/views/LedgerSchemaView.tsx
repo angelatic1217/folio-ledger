@@ -25,7 +25,7 @@ const SAMPLE_CSV: Record<SheetTabKey, string> = {
   benchmarks:
     "symbol,name,yahoo_ticker,currency,scope\n0050,元大台灣50,0050.TW,TWD,TW\nVOO,標普500,VOO,USD,US\nVT,全球股票,VT,USD,ALL\n",
   loans:
-    "id,name,funding_tag,start_date,principal_twd,disbursed_twd,wire_fee_twd,received_usd,apr,term_months,monthly_payment_twd,total_interest_twd,note\nloan-2025,2025 首期信貸,2025信貸,2025-07-01,1000000,995000,400,31000,0.025,84,12989,,84期本息均攤\n",
+    "id,name,funding_tag,start_date,principal_twd,disbursed_twd,wire_fee_twd,received_usd,apr,term_months,monthly_payment_twd,total_interest_twd,status,closed_date,payoff_twd,refinanced_payoff_twd,note\nloan-2025,2025 首期信貸,2025信貸,2025-07-01,1000000,995000,400,31000,0.025,84,12989,,refinanced,2026-10-01,835000,,已借新還舊結清\nloan-2026,2026 轉增貸,2026增貸,2026-10-01,1500000,663000,400,20400,0.029,84,19758,,active,,,835000,借新還舊方案\n",
 };
 
 export function LedgerSchemaView({
@@ -119,16 +119,19 @@ export function LedgerSchemaView({
           l.id,
           l.name,
           l.fundingTag,
+          l.status ?? "active",
           l.startDate,
+          l.closedDate ?? "—",
           l.principalTwd.toLocaleString("en-US"),
           l.disbursedTwd.toLocaleString("en-US"),
-          l.receivedUsd ? l.receivedUsd.toLocaleString("en-US") : "—",
+          l.payoffTwd
+            ? `結清 ${l.payoffTwd.toLocaleString("en-US")}`
+            : l.refinancedPayoffTwd
+              ? `代償 ${l.refinancedPayoffTwd.toLocaleString("en-US")}`
+              : "—",
           `${(l.apr * 100).toFixed(2)}%`,
           String(l.termMonths),
           l.monthlyPaymentTwd ? l.monthlyPaymentTwd.toLocaleString("en-US") : "自動PMT",
-          l.totalInterestOverrideTwd
-            ? l.totalInterestOverrideTwd.toLocaleString("en-US")
-            : "自動估算",
         ])
         .filter(match);
       return {
@@ -136,14 +139,15 @@ export function LedgerSchemaView({
           "id",
           "name",
           "funding_tag",
+          "status",
           "start_date",
+          "closed_date",
           "principal_twd",
           "disbursed_twd",
-          "received_usd",
+          "payoff / refi",
           "apr",
-          "term_months",
+          "term",
           "monthly_payment",
-          "total_interest",
         ],
         rows,
       };
