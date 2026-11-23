@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatMoney } from "@/lib/utils";
+import { usePrivacy } from "@/lib/privacy/context";
 import type { AmortizationRow } from "@/types/quant";
 import type { CurrencyCode } from "@/types/sheet";
 
@@ -29,6 +29,8 @@ export function LoanAmortizationChart({
   fxRate,
   height = 260,
 }: LoanAmortizationChartProps) {
+  const { privacyMode, fmtMoney } = usePrivacy();
+
   if (schedule.length === 0) {
     return (
       <div className="flex h-56 items-center justify-center text-xs text-[var(--muted-foreground)]">
@@ -49,6 +51,7 @@ export function LoanAmortizationChart({
   }));
 
   const formatAxis = (v: number) => {
+    if (privacyMode) return "•••";
     const val = currency === "TWD" ? v : v / (fxRate || 32);
     if (Math.abs(val) >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
     if (Math.abs(val) >= 1_000) return `${Math.round(val / 1_000)}k`;
@@ -120,20 +123,20 @@ export function LoanAmortizationChart({
                   <div className="flex justify-between gap-4">
                     <span className="text-[var(--muted-foreground)]">剩餘本金</span>
                     <span className="font-mono font-semibold tabular-nums">
-                      {formatMoney(d.remainingPrincipalTwd, currency, fxRate)}
+                      {fmtMoney(d.remainingPrincipalTwd, currency, fxRate)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-[var(--muted-foreground)]">當期本金 / 利息</span>
                     <span className="font-mono tabular-nums">
-                      {formatMoney(d.principalTwd, currency, fxRate)} /{" "}
-                      {formatMoney(d.interestTwd, currency, fxRate)}
+                      {fmtMoney(d.principalTwd, currency, fxRate)} /{" "}
+                      {fmtMoney(d.interestTwd, currency, fxRate)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-[var(--muted-foreground)]">累積利息</span>
                     <span className="font-mono font-semibold text-[var(--warning)] tabular-nums">
-                      {formatMoney(d.cumulativeInterestTwd, currency, fxRate)}
+                      {fmtMoney(d.cumulativeInterestTwd, currency, fxRate)}
                     </span>
                   </div>
                 </div>

@@ -6,6 +6,8 @@ import {
   CalendarRange,
   Database,
   Download,
+  Eye,
+  EyeOff,
   Landmark,
   LayoutDashboard,
   Moon,
@@ -31,6 +33,7 @@ import {
   createFallbackMarketBundle,
 } from "@/lib/demo/fixtures";
 import { syncPrivateGoogleSheet } from "@/lib/google/sheets-client";
+import { usePrivacy } from "@/lib/privacy/context";
 import { runQuantEngine } from "@/lib/quant/engine";
 import { computePortfolioLeverageSummary } from "@/lib/quant/loan";
 import {
@@ -59,6 +62,7 @@ type NavTab = "overview" | "loans" | "mdd" | "period" | "annual" | "ledger";
 
 export default function HomePage() {
   const { theme, setTheme } = useTheme();
+  const { privacyMode, togglePrivacyMode } = usePrivacy();
   const [mounted, setMounted] = useState(false);
 
   const [settings, setSettings] = useState<LocalAppSettings>(DEFAULT_LOCAL_SETTINGS);
@@ -412,6 +416,28 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
+
+            {/* Privacy Mode Toggle */}
+            <Button
+              variant={privacyMode ? "default" : "outline"}
+              size="md"
+              onClick={togglePrivacyMode}
+              title={
+                privacyMode
+                  ? "關閉隱私模式，顯示真實金額與股數 (Shift+P)"
+                  : "開啟隱私模式，隱藏所有金額與股數 (Shift+P)"
+              }
+              aria-pressed={privacyMode}
+            >
+              {privacyMode ? (
+                <EyeOff className="h-3.5 w-3.5" />
+              ) : (
+                <Eye className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {privacyMode ? "隱私中" : "隱私"}
+              </span>
+            </Button>
 
             {/* Theme Toggle */}
             {mounted && (

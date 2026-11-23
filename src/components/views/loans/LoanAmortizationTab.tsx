@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { LoanAmortizationChart } from "@/components/charts/LoanAmortizationChart";
 import { Badge, Card } from "@/components/ui/primitives";
-import { formatMoney } from "@/lib/utils";
+import { usePrivacy } from "@/lib/privacy/context";
 import type { LoanFacilitySummary } from "@/types/quant";
 import type { CurrencyCode } from "@/types/sheet";
 
@@ -24,6 +24,7 @@ export function LoanAmortizationTab({
   fxRate,
   onSelectLoan,
 }: LoanAmortizationTabProps) {
+  const { fmtMoney } = usePrivacy();
   const [filter, setFilter] = useState<ScheduleFilter>("all");
   const f = selectedFacility;
 
@@ -101,10 +102,10 @@ export function LoanAmortizationTab({
         <Card className="p-4 space-y-1.5">
           <div className="text-xs text-[var(--muted-foreground)]">剩餘未還本金</div>
           <div className="font-mono text-xl font-bold tabular-nums">
-            {formatMoney(f.remainingPrincipalTwd, currency, fxRate)}
+            {fmtMoney(f.remainingPrincipalTwd, currency, fxRate)}
           </div>
           <div className="text-xs text-[var(--muted-foreground)] font-mono">
-            原核貸 {formatMoney(f.principalTwd, currency, fxRate)}
+            原核貸 {fmtMoney(f.principalTwd, currency, fxRate)}
           </div>
         </Card>
 
@@ -113,12 +114,12 @@ export function LoanAmortizationTab({
             {f.status === "active" ? "截至今日已繳利息" : "結清前實付總息（含差額）"}
           </div>
           <div className="font-mono text-xl font-bold text-[var(--warning)] tabular-nums">
-            {formatMoney(f.accruedInterestToDateTwd, currency, fxRate)}
+            {fmtMoney(f.accruedInterestToDateTwd, currency, fxRate)}
           </div>
           <div className="text-xs text-[var(--muted-foreground)] font-mono">
             {f.status === "active"
-              ? `全期預估總息 ${formatMoney(f.fullTermInterestTwd, currency, fxRate)}`
-              : `結清金額 ${f.payoffTwd ? formatMoney(f.payoffTwd, "TWD", fxRate) : "—"}`}
+              ? `全期預估總息 ${fmtMoney(f.fullTermInterestTwd, currency, fxRate)}`
+              : `結清金額 ${f.payoffTwd ? fmtMoney(f.payoffTwd, "TWD", fxRate) : "—"}`}
           </div>
         </Card>
 
@@ -128,11 +129,11 @@ export function LoanAmortizationTab({
           </div>
           <div className="font-mono text-xl font-bold tabular-nums">
             {f.status === "active"
-              ? formatMoney(remainingInterestTwd, currency, fxRate)
-              : formatMoney(0, currency, fxRate)}
+              ? fmtMoney(remainingInterestTwd, currency, fxRate)
+              : fmtMoney(0, currency, fxRate)}
           </div>
           <div className="text-xs text-[var(--muted-foreground)] font-mono">
-            每期合約月付 {formatMoney(f.monthlyPaymentTwd, currency, fxRate)} · APR{" "}
+            每期合約月付 {fmtMoney(f.monthlyPaymentTwd, currency, fxRate)} · APR{" "}
             {(f.apr * 100).toFixed(2)}%
           </div>
         </Card>
@@ -220,19 +221,19 @@ export function LoanAmortizationTab({
                     {r.paymentDate}
                   </td>
                   <td className="px-4 py-2 tabular-nums">
-                    {formatMoney(r.principalTwd, currency, fxRate)}
+                    {fmtMoney(r.principalTwd, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2 text-[var(--warning)] tabular-nums">
-                    {formatMoney(r.interestTwd, currency, fxRate)}
+                    {fmtMoney(r.interestTwd, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2 tabular-nums">
-                    {formatMoney(r.paymentTwd, currency, fxRate)}
+                    {fmtMoney(r.paymentTwd, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2 text-[var(--muted-foreground)] tabular-nums">
-                    {formatMoney(r.cumulativeInterestTwd, currency, fxRate)}
+                    {fmtMoney(r.cumulativeInterestTwd, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2 font-semibold tabular-nums">
-                    {formatMoney(r.remainingPrincipalTwd, currency, fxRate)}
+                    {fmtMoney(r.remainingPrincipalTwd, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2 text-center font-sans">
                     <Badge variant={r.paid ? "success" : "muted"}>

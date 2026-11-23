@@ -4,6 +4,7 @@ import { Download, FileSpreadsheet, Settings, Shield, Upload } from "lucide-reac
 import { useMemo, useState } from "react";
 import { Badge, Button, Card, Input } from "@/components/ui/primitives";
 import { buildSheetTabCsv, triggerFileDownload } from "@/lib/export/exporter";
+import { usePrivacy } from "@/lib/privacy/context";
 import type { PortfolioSheetsData } from "@/types/sheet";
 
 type SheetTabKey = "transactions" | "assets" | "cash_snapshots" | "benchmarks" | "loans";
@@ -34,6 +35,7 @@ export function LedgerSchemaView({
   onPreviewEmptyShell,
   onImportCsvFile,
 }: LedgerSchemaViewProps) {
+  const { fmtMask } = usePrivacy();
   const [activeTab, setActiveTab] = useState<SheetTabKey>("transactions");
   const [search, setSearch] = useState("");
 
@@ -61,9 +63,9 @@ export function LedgerSchemaView({
           t.date,
           t.symbol,
           t.type,
-          String(t.shares),
+          fmtMask(String(t.shares), "••••"),
           String(t.price),
-          String(t.fee),
+          fmtMask(String(t.fee), "•••"),
           t.fxRate ? String(t.fxRate) : "自動歷史匯率",
           t.fundingTag ?? "自有資金",
           t.note ?? "—",
@@ -105,7 +107,12 @@ export function LedgerSchemaView({
     if (activeTab === "cash_snapshots") {
       const rows = [...sheets.cashSnapshots]
         .reverse()
-        .map((c) => [c.date, c.currency, c.balance.toLocaleString("en-US"), c.note ?? "—"])
+        .map((c) => [
+          c.date,
+          c.currency,
+          fmtMask(c.balance.toLocaleString("en-US")),
+          c.note ?? "—",
+        ])
         .filter(match);
       return {
         headers: ["date", "currency", "balance", "note"],
@@ -122,16 +129,18 @@ export function LedgerSchemaView({
           l.status ?? "active",
           l.startDate,
           l.closedDate ?? "—",
-          l.principalTwd.toLocaleString("en-US"),
-          l.disbursedTwd.toLocaleString("en-US"),
+          fmtMask(l.principalTwd.toLocaleString("en-US")),
+          fmtMask(l.disbursedTwd.toLocaleString("en-US")),
           l.payoffTwd
-            ? `結清 ${l.payoffTwd.toLocaleString("en-US")}`
+            ? fmtMask(`結清 ${l.payoffTwd.toLocaleString("en-US")}`)
             : l.refinancedPayoffTwd
-              ? `代償 ${l.refinancedPayoffTwd.toLocaleString("en-US")}`
+              ? fmtMask(`代償 ${l.refinancedPayoffTwd.toLocaleString("en-US")}`)
               : "—",
           `${(l.apr * 100).toFixed(2)}%`,
           String(l.termMonths),
-          l.monthlyPaymentTwd ? l.monthlyPaymentTwd.toLocaleString("en-US") : "自動PMT",
+          l.monthlyPaymentTwd
+            ? fmtMask(l.monthlyPaymentTwd.toLocaleString("en-US"))
+            : "自動PMT",
         ])
         .filter(match);
       return {
@@ -160,7 +169,7 @@ export function LedgerSchemaView({
       headers: ["symbol", "name", "yahoo_ticker", "currency", "scope"],
       rows,
     };
-  }, [activeTab, search, sheets]);
+  }, [activeTab, search, sheets, fmtMask]);
 
   return (
     <div className="space-y-5">

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { AnnualAlphaBarChart } from "@/components/charts/AnnualAlphaBarChart";
 import { Card } from "@/components/ui/primitives";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { usePrivacy } from "@/lib/privacy/context";
+import { formatPercent } from "@/lib/utils";
 import type { QuantEngineOutput } from "@/types/quant";
 import type { BenchmarkScope, CurrencyCode } from "@/types/sheet";
 
@@ -19,6 +20,7 @@ const SCOPE_OPTIONS: Array<{ key: BenchmarkScope; label: string }> = [
 ];
 
 export function AnnualAlphaView({ engine, currency }: AnnualAlphaViewProps) {
+  const { fmtMoney } = usePrivacy();
   const [group, setGroup] = useState<BenchmarkScope>("ALL");
   const rows = engine.annualByScope[group] ?? [];
   const benchName = rows[0]?.benchmarkName ?? "市場基準";
@@ -98,13 +100,13 @@ export function AnnualAlphaView({ engine, currency }: AnnualAlphaViewProps) {
                 <tr key={r.year} className="hover:bg-[var(--muted)]/40">
                   <td className="px-4 py-3 font-semibold">{r.year}</td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums">
-                    {formatMoney(r.startValueTwd, currency, engine.latestFxRate)}
+                    {fmtMoney(r.startValueTwd, currency, engine.latestFxRate)}
                   </td>
                   <td className="px-3 py-3 text-right font-mono tabular-nums">
-                    {formatMoney(r.netInflowTwd, currency, engine.latestFxRate)}
+                    {fmtMoney(r.netInflowTwd, currency, engine.latestFxRate)}
                   </td>
                   <td className="px-3 py-3 text-right font-mono font-semibold tabular-nums">
-                    {formatMoney(r.endValueTwd, currency, engine.latestFxRate)}
+                    {fmtMoney(r.endValueTwd, currency, engine.latestFxRate)}
                   </td>
                   <td
                     className="px-3 py-3 text-right font-mono tabular-nums"
@@ -112,7 +114,7 @@ export function AnnualAlphaView({ engine, currency }: AnnualAlphaViewProps) {
                       color: r.netPnlTwd >= 0 ? "var(--success)" : "var(--danger)",
                     }}
                   >
-                    {formatMoney(r.netPnlTwd, currency, engine.latestFxRate, {
+                    {fmtMoney(r.netPnlTwd, currency, engine.latestFxRate, {
                       signed: true,
                     })}
                   </td>

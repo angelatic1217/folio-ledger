@@ -2,7 +2,8 @@
 
 import { Coins, Percent, Scale, TrendingUp } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui/primitives";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { usePrivacy } from "@/lib/privacy/context";
+import { formatPercent } from "@/lib/utils";
 import type { PortfolioLeverageSummary } from "@/types/quant";
 import type { CurrencyCode } from "@/types/sheet";
 
@@ -23,6 +24,7 @@ export function LoanOverviewTab({
   onInspectAmortization,
   onSelectFundingFilter,
 }: LoanOverviewTabProps) {
+  const { fmtMoney } = usePrivacy();
   const fx = leverage.latestFxRate;
   const activeNetPnl =
     interestBasis === "full"
@@ -61,11 +63,11 @@ export function LoanOverviewTab({
             </Badge>
           </div>
           <div className="font-mono text-2xl font-bold tracking-tight tabular-nums">
-            {formatMoney(leverage.netWorthTwd, currency, fx)}
+            {fmtMoney(leverage.netWorthTwd, currency, fx)}
           </div>
           <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
             <span>
-              剩餘本金 {formatMoney(leverage.totalRemainingDebtTwd, currency, fx)}
+              剩餘本金 {fmtMoney(leverage.totalRemainingDebtTwd, currency, fx)}
             </span>
             <span className="font-mono">
               負債比 {(leverage.debtToAssetRatio * 100).toFixed(1)}%
@@ -83,7 +85,7 @@ export function LoanOverviewTab({
             </Badge>
           </div>
           <div className="font-mono text-2xl font-bold tracking-tight tabular-nums">
-            {formatMoney(leverage.totalLoanAssetValueTwd, currency, fx)}
+            {fmtMoney(leverage.totalLoanAssetValueTwd, currency, fx)}
           </div>
           <div className="flex items-center justify-between text-xs">
             <span
@@ -95,18 +97,18 @@ export function LoanOverviewTab({
                     : "var(--danger)",
               }}
             >
-              {formatMoney(leverage.totalLoanGrossPnlTwd, currency, fx, {
+              {fmtMoney(leverage.totalLoanGrossPnlTwd, currency, fx, {
                 signed: true,
               })}
             </span>
             <span className="text-[var(--muted-foreground)] font-mono">
               股{" "}
-              {formatMoney(leverage.totalLoanEquityPnlTwd, currency, fx, {
+              {fmtMoney(leverage.totalLoanEquityPnlTwd, currency, fx, {
                 signed: true,
                 compact: true,
               })}{" "}
               · 匯{" "}
-              {formatMoney(leverage.totalLoanFxPnlTwd, currency, fx, {
+              {fmtMoney(leverage.totalLoanFxPnlTwd, currency, fx, {
                 signed: true,
                 compact: true,
               })}
@@ -129,14 +131,14 @@ export function LoanOverviewTab({
               color: activeNetPnl >= 0 ? "var(--success)" : "var(--danger)",
             }}
           >
-            {formatMoney(activeNetPnl, currency, fx, { signed: true })}
+            {fmtMoney(activeNetPnl, currency, fx, { signed: true })}
           </div>
           <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
             <span>
               {interestBasis === "full" ? "扣除全期總利息" : "扣除截至今日已繳利息"}
             </span>
             <span className="font-mono text-[var(--warning)] tabular-nums">
-              -{formatMoney(activeInterestDeducted, currency, fx)}
+              -{fmtMoney(activeInterestDeducted, currency, fx)}
             </span>
           </div>
         </Card>
@@ -151,11 +153,11 @@ export function LoanOverviewTab({
             </Badge>
           </div>
           <div className="font-mono text-2xl font-bold tracking-tight tabular-nums">
-            {formatMoney(leverage.totalMonthlyPaymentTwd, currency, fx)}
+            {fmtMoney(leverage.totalMonthlyPaymentTwd, currency, fx)}
           </div>
           <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
             <span>
-              投入股市成本 {formatMoney(leverage.totalCostTwd, currency, fx)}
+              投入股市成本 {fmtMoney(leverage.totalCostTwd, currency, fx)}
             </span>
             {leverage.weightedAvgEntryFxRate && (
               <span className="font-mono">
@@ -249,10 +251,10 @@ export function LoanOverviewTab({
                       </div>
                     </td>
                     <td className="px-3 py-2.5 tabular-nums">
-                      {formatMoney(f.totalCostTwd, currency, fx)}
+                      {fmtMoney(f.totalCostTwd, currency, fx)}
                     </td>
                     <td className="px-3 py-2.5 font-semibold tabular-nums">
-                      {formatMoney(f.totalValueTwd, currency, fx)}
+                      {fmtMoney(f.totalValueTwd, currency, fx)}
                     </td>
                     <td
                       className="px-3 py-2.5 font-semibold tabular-nums"
@@ -262,7 +264,7 @@ export function LoanOverviewTab({
                       }}
                     >
                       <div>
-                        {formatMoney(f.grossPnlTwd, currency, fx, { signed: true })}
+                        {fmtMoney(f.grossPnlTwd, currency, fx, { signed: true })}
                       </div>
                       <div className="text-[0.7rem]">
                         {formatPercent(f.grossReturn, { signed: true })}
@@ -275,7 +277,7 @@ export function LoanOverviewTab({
                           f.equityPnlTwd >= 0 ? "var(--success)" : "var(--danger)",
                       }}
                     >
-                      {formatMoney(f.equityPnlTwd, currency, fx, { signed: true })}
+                      {fmtMoney(f.equityPnlTwd, currency, fx, { signed: true })}
                     </td>
                     <td
                       className="px-3 py-2.5 tabular-nums"
@@ -287,11 +289,11 @@ export function LoanOverviewTab({
                       }}
                     >
                       {f.fxPnlTwd !== null
-                        ? formatMoney(f.fxPnlTwd, currency, fx, { signed: true })
+                        ? fmtMoney(f.fxPnlTwd, currency, fx, { signed: true })
                         : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-[var(--warning)] tabular-nums">
-                      -{formatMoney(interestCost, currency, fx)}
+                      -{fmtMoney(interestCost, currency, fx)}
                     </td>
                     <td
                       className="px-3 py-2.5 font-bold tabular-nums"
@@ -299,7 +301,7 @@ export function LoanOverviewTab({
                         color: netPnl >= 0 ? "var(--success)" : "var(--danger)",
                       }}
                     >
-                      <div>{formatMoney(netPnl, currency, fx, { signed: true })}</div>
+                      <div>{fmtMoney(netPnl, currency, fx, { signed: true })}</div>
                       <div className="text-[0.7rem]">
                         {formatPercent(netRet, { signed: true })}
                       </div>
@@ -345,10 +347,10 @@ export function LoanOverviewTab({
                     {(leverage.weightedApr * 100).toFixed(2)}%
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">
-                    {formatMoney(leverage.totalCostTwd, currency, fx)}
+                    {fmtMoney(leverage.totalCostTwd, currency, fx)}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">
-                    {formatMoney(leverage.totalLoanAssetValueTwd, currency, fx)}
+                    {fmtMoney(leverage.totalLoanAssetValueTwd, currency, fx)}
                   </td>
                   <td
                     className="px-3 py-2.5 tabular-nums"
@@ -360,7 +362,7 @@ export function LoanOverviewTab({
                     }}
                   >
                     <div>
-                      {formatMoney(leverage.totalLoanGrossPnlTwd, currency, fx, {
+                      {fmtMoney(leverage.totalLoanGrossPnlTwd, currency, fx, {
                         signed: true,
                       })}
                     </div>
@@ -369,17 +371,17 @@ export function LoanOverviewTab({
                     </div>
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">
-                    {formatMoney(leverage.totalLoanEquityPnlTwd, currency, fx, {
+                    {fmtMoney(leverage.totalLoanEquityPnlTwd, currency, fx, {
                       signed: true,
                     })}
                   </td>
                   <td className="px-3 py-2.5 tabular-nums">
-                    {formatMoney(leverage.totalLoanFxPnlTwd, currency, fx, {
+                    {fmtMoney(leverage.totalLoanFxPnlTwd, currency, fx, {
                       signed: true,
                     })}
                   </td>
                   <td className="px-3 py-2.5 text-[var(--warning)] tabular-nums">
-                    -{formatMoney(activeInterestDeducted, currency, fx)}
+                    -{fmtMoney(activeInterestDeducted, currency, fx)}
                   </td>
                   <td
                     className="px-3 py-2.5 tabular-nums"
@@ -388,7 +390,7 @@ export function LoanOverviewTab({
                     }}
                   >
                     <div>
-                      {formatMoney(activeNetPnl, currency, fx, { signed: true })}
+                      {fmtMoney(activeNetPnl, currency, fx, { signed: true })}
                     </div>
                     <div className="text-[0.7rem]">
                       {formatPercent(activeNetReturn, { signed: true })}

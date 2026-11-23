@@ -2,7 +2,8 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui/primitives";
-import { formatMoney, formatPercent, formatPrice } from "@/lib/utils";
+import { usePrivacy } from "@/lib/privacy/context";
+import { formatPercent, formatPrice } from "@/lib/utils";
 import type { LoanFacilitySummary } from "@/types/quant";
 import type { CurrencyCode } from "@/types/sheet";
 
@@ -31,6 +32,7 @@ export function LoanHoldingsTab({
   onSelectLoan,
   onSelectFundingFilter,
 }: LoanHoldingsTabProps) {
+  const { fmtMoney, fmtUsd, fmtShares } = usePrivacy();
   const f = selectedFacility;
   const totalVal = Math.max(1, f.totalValueTwd);
 
@@ -107,12 +109,12 @@ export function LoanHoldingsTab({
             )}
           </div>
           <div className="font-mono text-xl font-bold tabular-nums">
-            {formatMoney(f.principalTwd, "TWD", fxRate)}
+            {fmtMoney(f.principalTwd, "TWD", fxRate)}
           </div>
           <div className="text-xs text-[var(--muted-foreground)] font-mono">
             {f.refinancedPayoffTwd > 0
-              ? `代償 ${formatMoney(f.refinancedPayoffTwd, "TWD", fxRate)} + 新撥 ${formatMoney(f.disbursedTwd, "TWD", fxRate)}`
-              : `實撥 ${formatMoney(f.disbursedTwd, "TWD", fxRate)} · 匯費 ${formatMoney(f.wireFeeTwd, "TWD", fxRate)}`}
+              ? `代償 ${fmtMoney(f.refinancedPayoffTwd, "TWD", fxRate)} + 新撥 ${fmtMoney(f.disbursedTwd, "TWD", fxRate)}`
+              : `實撥 ${fmtMoney(f.disbursedTwd, "TWD", fxRate)} · 匯費 ${fmtMoney(f.wireFeeTwd, "TWD", fxRate)}`}
           </div>
         </Card>
 
@@ -122,14 +124,14 @@ export function LoanHoldingsTab({
           </div>
           <div className="font-mono text-xl font-bold tabular-nums">
             {f.status === "active"
-              ? formatMoney(f.activeMonthlyPaymentTwd, "TWD", fxRate)
+              ? fmtMoney(f.activeMonthlyPaymentTwd, "TWD", fxRate)
               : f.payoffTwd
-                ? formatMoney(f.payoffTwd, "TWD", fxRate)
+                ? fmtMoney(f.payoffTwd, "TWD", fxRate)
                 : "已結清"}
           </div>
           <div className="text-xs text-[var(--muted-foreground)] font-mono">
             {f.status === "active"
-              ? `剩餘本金 ${formatMoney(f.remainingPrincipalTwd, "TWD", fxRate)}`
+              ? `剩餘本金 ${fmtMoney(f.remainingPrincipalTwd, "TWD", fxRate)}`
               : `已於 ${f.closedDate ?? "—"} 結清 · 剩餘負債 NT$ 0`}
           </div>
         </Card>
@@ -175,7 +177,7 @@ export function LoanHoldingsTab({
                 color: f.equityPnlTwd >= 0 ? "var(--success)" : "var(--danger)",
               }}
             >
-              {formatMoney(f.equityPnlTwd, currency, fxRate, {
+              {fmtMoney(f.equityPnlTwd, currency, fxRate, {
                 signed: true,
                 compact: true,
               })}
@@ -188,7 +190,7 @@ export function LoanHoldingsTab({
               }}
             >
               {f.fxPnlTwd !== null
-                ? formatMoney(f.fxPnlTwd, currency, fxRate, {
+                ? fmtMoney(f.fxPnlTwd, currency, fxRate, {
                     signed: true,
                     compact: true,
                   })
@@ -211,8 +213,8 @@ export function LoanHoldingsTab({
               </p>
             </div>
             <span className="font-mono text-xs font-semibold tabular-nums">
-              總估值 {formatMoney(f.totalValueTwd, currency, fxRate)}
-              {f.receivedUsd ? ` ($${f.totalValueUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD)` : ""}
+              總估值 {fmtMoney(f.totalValueTwd, currency, fxRate)}
+              {f.receivedUsd ? ` (${fmtUsd(f.totalValueUsd)} USD)` : ""}
             </span>
           </div>
 
@@ -238,7 +240,7 @@ export function LoanHoldingsTab({
                 />
                 <span className="font-mono font-semibold">{w.label}</span>
                 <span className="font-mono text-[var(--muted-foreground)] tabular-nums">
-                  {w.pct.toFixed(1)}% ({formatMoney(w.valueTwd, currency, fxRate)})
+                  {w.pct.toFixed(1)}% ({fmtMoney(w.valueTwd, currency, fxRate)})
                 </span>
               </div>
             ))}
@@ -287,22 +289,19 @@ export function LoanHoldingsTab({
                       </div>
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
-                      {h.shares.toLocaleString("en-US", { maximumFractionDigits: 4 })}
+                      {fmtShares(h.shares, { maxDigits: 4 })}
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
                       {formatPrice(h.latestPrice, h.currency)}
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
-                      ${h.marketValueUsd.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {fmtUsd(h.marketValueUsd)}
                     </td>
                     <td className="px-4 py-2.5 font-semibold tabular-nums">
-                      {formatMoney(h.marketValueTwd, currency, fxRate)}
+                      {fmtMoney(h.marketValueTwd, currency, fxRate)}
                     </td>
                     <td className="px-4 py-2.5 text-[var(--muted-foreground)] tabular-nums">
-                      {formatMoney(h.costBasisTwd, currency, fxRate)}
+                      {fmtMoney(h.costBasisTwd, currency, fxRate)}
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
                       {weightPct.toFixed(1)}%
@@ -316,7 +315,7 @@ export function LoanHoldingsTab({
                             : "var(--danger)",
                       }}
                     >
-                      {formatMoney(h.unrealizedPnlTwd, currency, fxRate, {
+                      {fmtMoney(h.unrealizedPnlTwd, currency, fxRate, {
                         signed: true,
                       })}
                     </td>
@@ -342,14 +341,14 @@ export function LoanHoldingsTab({
                     </div>
                   </td>
                   <td className="px-4 py-2.5 tabular-nums">
-                    {f.residualCashUsd.toFixed(2)}
+                    {fmtShares(f.residualCashUsd, { maxDigits: 2 })}
                   </td>
                   <td className="px-4 py-2.5 tabular-nums">$1.00</td>
                   <td className="px-4 py-2.5 tabular-nums">
-                    ${f.residualCashUsd.toFixed(2)}
+                    {fmtUsd(f.residualCashUsd)}
                   </td>
                   <td className="px-4 py-2.5 font-semibold tabular-nums">
-                    {formatMoney(f.residualCashUsd * fxRate, currency, fxRate)}
+                    {fmtMoney(f.residualCashUsd * fxRate, currency, fxRate)}
                   </td>
                   <td className="px-4 py-2.5 text-[var(--muted-foreground)]">—</td>
                   <td className="px-4 py-2.5 tabular-nums">

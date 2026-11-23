@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { Badge, Card, Input } from "@/components/ui/primitives";
+import { usePrivacy } from "@/lib/privacy/context";
 import { computePeriodPerformance } from "@/lib/quant/attribution";
 import { addDaysIso } from "@/lib/quant/calendar";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { formatPercent } from "@/lib/utils";
 import type { MarketDataBundle } from "@/types/market";
 import type { PortfolioScope, QuantEngineOutput } from "@/types/quant";
 import type { CurrencyCode, PortfolioSheetsData } from "@/types/sheet";
@@ -26,6 +27,7 @@ export function DynamicPeriodView({
   scope,
   currency,
 }: DynamicPeriodViewProps) {
+  const { fmtMoney, fmtShares } = usePrivacy();
   const defaultEnd = engine.asOfDate;
   const defaultStart = `${defaultEnd.slice(0, 4)}-01-01`;
 
@@ -61,13 +63,13 @@ export function DynamicPeriodView({
   );
 
   const summaryCards = [
-    { label: "期初總估值", value: formatMoney(summary.startValueTwd, currency, engine.latestFxRate) },
-    { label: "區間買入投入", value: formatMoney(summary.buyInflowTwd, currency, engine.latestFxRate) },
-    { label: "區間賣出/股利收回", value: formatMoney(summary.sellAndDividendOutflowTwd, currency, engine.latestFxRate) },
-    { label: "期末總估值", value: formatMoney(summary.endValueTwd, currency, engine.latestFxRate) },
+    { label: "期初總估值", value: fmtMoney(summary.startValueTwd, currency, engine.latestFxRate) },
+    { label: "區間買入投入", value: fmtMoney(summary.buyInflowTwd, currency, engine.latestFxRate) },
+    { label: "區間賣出/股利收回", value: fmtMoney(summary.sellAndDividendOutflowTwd, currency, engine.latestFxRate) },
+    { label: "期末總估值", value: fmtMoney(summary.endValueTwd, currency, engine.latestFxRate) },
     {
       label: "區間淨損益",
-      value: formatMoney(summary.netPnlTwd, currency, engine.latestFxRate, { signed: true }),
+      value: fmtMoney(summary.netPnlTwd, currency, engine.latestFxRate, { signed: true }),
       color: summary.netPnlTwd >= 0 ? "var(--success)" : "var(--danger)",
     },
     {
@@ -202,7 +204,7 @@ export function DynamicPeriodView({
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {h.startShares.toLocaleString("en-US", { maximumFractionDigits: 3 })}
+                    {fmtShares(h.startShares, { maxDigits: 3 })}
                   </td>
                   <td
                     className="px-3 py-2.5 text-right font-mono tabular-nums"
@@ -215,14 +217,13 @@ export function DynamicPeriodView({
                             : "var(--muted-foreground)",
                     }}
                   >
-                    {h.deltaShares > 0 ? "+" : ""}
-                    {h.deltaShares.toLocaleString("en-US", { maximumFractionDigits: 3 })}
+                    {fmtShares(h.deltaShares, { maxDigits: 3, signed: true })}
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono font-semibold tabular-nums">
-                    {h.endShares.toLocaleString("en-US", { maximumFractionDigits: 3 })}
+                    {fmtShares(h.endShares, { maxDigits: 3 })}
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                    {formatMoney(h.netCashFlowTwd, currency, engine.latestFxRate)}
+                    {fmtMoney(h.netCashFlowTwd, currency, engine.latestFxRate)}
                   </td>
                   <td
                     className="px-3 py-2.5 text-right font-mono font-medium tabular-nums"

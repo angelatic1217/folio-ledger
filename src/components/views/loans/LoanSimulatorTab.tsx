@@ -21,9 +21,9 @@ interface LoanSimulatorTabProps {
 }
 
 export function LoanSimulatorTab({ fxRate }: LoanSimulatorTabProps) {
-  const [simPrincipal, setSimPrincipal] = useState("2980000");
-  const [simOrigFee, setSimOrigFee] = useState("2000");
-  const [simAprPct, setSimAprPct] = useState("2.99");
+  const [simPrincipal, setSimPrincipal] = useState("1000000");
+  const [simOrigFee, setSimOrigFee] = useState("5000");
+  const [simAprPct, setSimAprPct] = useState("2.50");
   const [simMonths, setSimMonths] = useState("84");
   const [simGrowthPct, setSimGrowthPct] = useState("8.0");
   const [simYieldPct, setSimYieldPct] = useState("1.29");

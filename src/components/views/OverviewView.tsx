@@ -5,12 +5,13 @@ import { useMemo, useState } from "react";
 import { TwrBenchmarkChart } from "@/components/charts/TwrBenchmarkChart";
 import { UnderwaterAreaChart } from "@/components/charts/UnderwaterAreaChart";
 import { Badge, Button, Card } from "@/components/ui/primitives";
+import { usePrivacy } from "@/lib/privacy/context";
 import { computePeriodPerformance } from "@/lib/quant/attribution";
 import {
   buildNormalizedBenchmarkCurves,
   sliceSeriesByRange,
 } from "@/lib/quant/engine";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { formatPercent } from "@/lib/utils";
 import type { MarketDataBundle } from "@/types/market";
 import type {
   PortfolioLeverageSummary,
@@ -51,6 +52,7 @@ export function OverviewView({
   onNavigateMdd,
   onNavigateLoans,
 }: OverviewViewProps) {
+  const { fmtMoney } = usePrivacy();
   const [range, setRange] = useState<TimeRangePreset>("1Y");
   const [enabledBenchmarks, setEnabledBenchmarks] = useState<Record<string, boolean>>({
     VT: true,
@@ -198,7 +200,7 @@ export function OverviewView({
             <Badge>{currency === "TWD" ? "TWD 含匯率" : "USD 折算"}</Badge>
           </div>
           <div className="font-mono text-2xl font-bold tracking-tight tabular-nums">
-            {formatMoney(totalDisplayVal, currency, engine.latestFxRate)}
+            {fmtMoney(totalDisplayVal, currency, engine.latestFxRate)}
           </div>
           <div className="flex items-center justify-between text-xs">
             <span
@@ -207,7 +209,7 @@ export function OverviewView({
                 color: unrealizedPnl >= 0 ? "var(--success)" : "var(--danger)",
               }}
             >
-              {formatMoney(unrealizedPnl, currency, engine.latestFxRate, {
+              {fmtMoney(unrealizedPnl, currency, engine.latestFxRate, {
                 signed: true,
               })}{" "}
               ({formatPercent(unrealizedPct, { signed: true })})
@@ -366,7 +368,7 @@ export function OverviewView({
                 <div className="flex justify-between">
                   <span className="font-medium">{item.label}</span>
                   <span className="font-mono text-[var(--muted-foreground)] tabular-nums">
-                    {formatMoney(item.value, currency, engine.latestFxRate)} (
+                    {fmtMoney(item.value, currency, engine.latestFxRate)} (
                     {item.pct.toFixed(1)}%)
                   </span>
                 </div>
@@ -387,7 +389,7 @@ export function OverviewView({
             <div className="flex justify-between">
               <span className="text-[var(--muted-foreground)]">累積已領現金股利</span>
               <span className="font-mono font-semibold text-[var(--success)] tabular-nums">
-                {formatMoney(
+                {fmtMoney(
                   engine.cumulativeDividendsTwd,
                   currency,
                   engine.latestFxRate
@@ -407,7 +409,7 @@ export function OverviewView({
                     自有淨值（扣剩餘信貸）
                   </span>
                   <span className="font-mono font-semibold tabular-nums">
-                    {formatMoney(leverage.netWorthTwd, currency, engine.latestFxRate)}
+                    {fmtMoney(leverage.netWorthTwd, currency, engine.latestFxRate)}
                     {leverage.leverageRatio
                       ? ` (${leverage.leverageRatio.toFixed(2)}x)`
                       : ""}
