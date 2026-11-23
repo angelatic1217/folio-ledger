@@ -144,3 +144,96 @@ export interface QuantEngineOutput {
   cumulativeDividendsTwd: number;
   cumulativeNetInvestedTwd: number;
 }
+
+export interface AmortizationRow {
+  period: number; // 1..termMonths
+  paymentDate: string; // YYYY-MM-DD
+  paymentTwd: number;
+  principalTwd: number;
+  interestTwd: number;
+  cumulativePrincipalTwd: number;
+  cumulativeInterestTwd: number;
+  remainingPrincipalTwd: number;
+  paid: boolean;
+}
+
+export interface LoanHoldingSummary {
+  symbol: string;
+  name: string;
+  currency: CurrencyCode;
+  shares: number;
+  latestPrice: number;
+  marketValueUsd: number;
+  marketValueTwd: number;
+  costBasisTwd: number;
+  unrealizedPnlTwd: number;
+}
+
+export interface LoanFacilitySummary {
+  id: string;
+  name: string;
+  fundingTag: string;
+  startDate: string;
+  holdingDays: number;
+  principalTwd: number;
+  disbursedTwd: number;
+  wireFeeTwd: number;
+  totalCostTwd: number; // disbursedTwd + wireFeeTwd
+  receivedUsd: number | null;
+  avgEntryFxRate: number | null; // totalCostTwd / receivedUsd
+  apr: number;
+  effectiveApr: number; // True APR including origination + wire fees
+  termMonths: number;
+  monthsElapsed: number;
+  monthlyPaymentTwd: number;
+  fullTermInterestTwd: number;
+  accruedInterestToDateTwd: number;
+  repaidPrincipalToDateTwd: number;
+  remainingPrincipalTwd: number;
+  holdingsValueTwd: number;
+  residualCashUsd: number;
+  totalValueTwd: number;
+  totalValueUsd: number;
+  grossPnlTwd: number;
+  grossReturn: number;
+  fxPnlTwd: number | null; // USD FX gain/loss vs entry FX
+  equityPnlTwd: number; // grossPnlTwd - (fxPnlTwd ?? 0)
+  netPnlFullInterestTwd: number; // grossPnlTwd - fullTermInterestTwd
+  netReturnFullInterest: number;
+  netPnlAccruedInterestTwd: number; // grossPnlTwd - accruedInterestToDateTwd
+  netReturnAccruedInterest: number;
+  annualizedGrossReturn: number | null; // null if holdingDays < 30
+  annualizedNetReturn: number | null; // based on full-term interest
+  carrySpread: number | null; // annualizedGrossReturn - apr
+  holdings: LoanHoldingSummary[];
+  schedule: AmortizationRow[];
+}
+
+export interface PortfolioLeverageSummary {
+  asOfDate: string;
+  latestFxRate: number;
+  facilities: LoanFacilitySummary[];
+  totalPrincipalTwd: number;
+  totalCostTwd: number;
+  totalReceivedUsd: number;
+  weightedAvgEntryFxRate: number | null;
+  totalMonthlyPaymentTwd: number;
+  weightedApr: number;
+  totalFullTermInterestTwd: number;
+  totalAccruedInterestTwd: number;
+  totalRemainingDebtTwd: number;
+  totalLoanAssetValueTwd: number;
+  totalLoanAssetValueUsd: number;
+  totalLoanGrossPnlTwd: number;
+  totalLoanGrossReturn: number;
+  totalLoanFxPnlTwd: number;
+  totalLoanEquityPnlTwd: number;
+  totalLoanNetPnlFullInterestTwd: number;
+  totalLoanNetReturnFullInterest: number;
+  totalLoanNetPnlAccruedInterestTwd: number;
+  totalLoanNetReturnAccruedInterest: number;
+  grossPortfolioAssetsTwd: number;
+  netWorthTwd: number; // grossPortfolioAssetsTwd - totalRemainingDebtTwd
+  leverageRatio: number | null; // grossPortfolioAssetsTwd / netWorthTwd
+  debtToAssetRatio: number; // totalRemainingDebtTwd / grossPortfolioAssetsTwd
+}

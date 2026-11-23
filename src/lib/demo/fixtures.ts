@@ -3,6 +3,7 @@ import type {
   Asset,
   BenchmarkConfig,
   CashSnapshot,
+  LoanFacility,
   PortfolioSheetsData,
   Transaction,
 } from "@/types/sheet";
@@ -26,25 +27,43 @@ export const DEFAULT_DEMO_BENCHMARKS: BenchmarkConfig[] = [
 
 export const DEMO_TRANSACTIONS: Transaction[] = [
   // 2023-2024: Pre-split 0050 raw broker shares (automatically aligned against Yahoo Finance 0050 1-for-4 split!)
-  { id: "d1", date: "2023-06-15", symbol: "0050", type: "BUY", shares: 1000, price: 132.5, fee: 20, fxRate: 1, note: "建立台股核心部位（拆股前原始股數）" },
-  { id: "d2", date: "2023-09-20", symbol: "006208", type: "BUY", shares: 1200, price: 73.2, fee: 20, fxRate: 1, note: "定期定額投入" },
-  { id: "d3", date: "2024-01-18", symbol: "VOO", type: "BUY", shares: 12, price: 438.5, fee: 0, fxRate: 31.4, note: "建立美股大盤部位" },
-  { id: "d4", date: "2024-03-15", symbol: "QQQ", type: "BUY", shares: 10, price: 439.2, fee: 0, fxRate: 31.6, note: "建立科技成長部位" },
-  { id: "d5", date: "2024-05-10", symbol: "VT", type: "BUY", shares: 45, price: 111.5, fee: 0, fxRate: 32.3, note: "全球市場分散" },
-  { id: "d6", date: "2024-06-28", symbol: "VOO", type: "DRIP", shares: 0.042, price: 500.8, fee: 0, fxRate: 32.4, note: "股息再投資 (CF=0)" },
-  { id: "d7", date: "2024-07-22", symbol: "0050", type: "DIVIDEND", shares: 1000, price: 1.0, fee: 10, fxRate: 1, note: "2024 下半年現金股利" },
-  { id: "d8", date: "2024-11-15", symbol: "0050", type: "BUY", shares: 500, price: 192.0, fee: 20, fxRate: 1, note: "年底定期加碼（拆股前）" },
-  { id: "d9", date: "2025-02-18", symbol: "VOO", type: "BUY", shares: 6, price: 560.0, fee: 0, fxRate: 32.7, note: "美股加碼" },
-  { id: "d10", date: "2025-04-09", symbol: "QQQ", type: "BUY", shares: 6, price: 445.0, fee: 0, fxRate: 32.9, note: "左側大幅回檔逢低布局" },
-  { id: "d11", date: "2025-06-27", symbol: "VOO", type: "DRIP", shares: 0.068, price: 562.0, fee: 0, fxRate: 29.8, note: "股息再投資 (CF=0)" },
-  { id: "d12", date: "2025-08-15", symbol: "0050", type: "BUY", shares: 2500, price: 53.5, fee: 20, fxRate: 1, note: "拆股後定期定額加碼" },
-  { id: "d13", date: "2025-10-15", symbol: "006208", type: "BUY", shares: 800, price: 138.0, fee: 20, fxRate: 1, note: "台股部位加碼" },
-  { id: "d14", date: "2025-11-20", symbol: "VT", type: "BUY", shares: 25, price: 132.0, fee: 0, fxRate: 31.4, note: "全球配置加碼" },
-  { id: "d15", date: "2026-01-20", symbol: "0050", type: "BUY", shares: 1500, price: 69.0, fee: 20, fxRate: 1, note: "2026 年初投入" },
-  { id: "d16", date: "2026-03-25", symbol: "QQQ", type: "DRIP", shares: 0.045, price: 585.0, fee: 0, fxRate: 32.2, note: "股息再投資 (CF=0)" },
-  { id: "d17", date: "2026-05-15", symbol: "VOO", type: "SELL", shares: 2, price: 598.0, fee: 1, fxRate: 32.1, note: "小幅再平衡獲利了結" },
-  { id: "d18", date: "2026-07-24", symbol: "0050", type: "DIVIDEND", shares: 10000, price: 0.95, fee: 10, fxRate: 1, note: "2026 配息入帳" },
-  { id: "d19", date: "2026-08-18", symbol: "VT", type: "BUY", shares: 15, price: 139.0, fee: 0, fxRate: 32.5, note: "全球分散加碼" },
+  { id: "d1", date: "2023-06-15", symbol: "0050", type: "BUY", shares: 1000, price: 132.5, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "建立台股核心部位（拆股前原始股數）" },
+  { id: "d2", date: "2023-09-20", symbol: "006208", type: "BUY", shares: 1200, price: 73.2, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "定期定額投入" },
+  { id: "d3", date: "2024-01-18", symbol: "VOO", type: "BUY", shares: 12, price: 438.5, fee: 0, fxRate: 31.4, fundingTag: "自有資金", note: "建立美股大盤部位" },
+  { id: "d4", date: "2024-03-15", symbol: "QQQ", type: "BUY", shares: 10, price: 439.2, fee: 0, fxRate: 31.6, fundingTag: "自有資金", note: "建立科技成長部位" },
+  { id: "d5", date: "2024-05-10", symbol: "VT", type: "BUY", shares: 45, price: 111.5, fee: 0, fxRate: 32.3, fundingTag: "自有資金", note: "全球市場分散" },
+  { id: "d6", date: "2024-06-28", symbol: "VOO", type: "DRIP", shares: 0.042, price: 500.8, fee: 0, fxRate: 32.4, fundingTag: "自有資金", note: "股息再投資 (CF=0)" },
+  { id: "d7", date: "2024-07-22", symbol: "0050", type: "DIVIDEND", shares: 1000, price: 1.0, fee: 10, fxRate: 1, fundingTag: "自有資金", note: "2024 下半年現金股利" },
+  { id: "d8", date: "2024-11-15", symbol: "0050", type: "BUY", shares: 500, price: 192.0, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "年底定期加碼（拆股前）" },
+  { id: "d9", date: "2025-02-18", symbol: "VOO", type: "BUY", shares: 6, price: 560.0, fee: 0, fxRate: 32.7, fundingTag: "自有資金", note: "美股加碼" },
+  { id: "d10", date: "2025-04-09", symbol: "QQQ", type: "BUY", shares: 6, price: 445.0, fee: 0, fxRate: 32.9, fundingTag: "自有資金", note: "左側大幅回檔逢低布局" },
+  { id: "d11", date: "2025-06-27", symbol: "VOO", type: "DRIP", shares: 0.068, price: 562.0, fee: 0, fxRate: 29.8, fundingTag: "自有資金", note: "股息再投資 (CF=0)" },
+  { id: "d12", date: "2025-08-15", symbol: "0050", type: "BUY", shares: 2500, price: 53.5, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "拆股後定期定額加碼" },
+  { id: "d13", date: "2025-10-15", symbol: "006208", type: "BUY", shares: 800, price: 138.0, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "台股部位加碼" },
+  { id: "d14", date: "2025-11-20", symbol: "VT", type: "BUY", shares: 25, price: 132.0, fee: 0, fxRate: 31.4, fundingTag: "2025示範信貸", note: "示範信貸建倉：全球配置" },
+  { id: "d15", date: "2026-01-20", symbol: "0050", type: "BUY", shares: 1500, price: 69.0, fee: 20, fxRate: 1, fundingTag: "自有資金", note: "2026 年初投入" },
+  { id: "d16", date: "2026-03-25", symbol: "QQQ", type: "DRIP", shares: 0.045, price: 585.0, fee: 0, fxRate: 32.2, fundingTag: "自有資金", note: "股息再投資 (CF=0)" },
+  { id: "d17", date: "2026-05-15", symbol: "VOO", type: "SELL", shares: 2, price: 598.0, fee: 1, fxRate: 32.1, fundingTag: "自有資金", note: "小幅再平衡獲利了結" },
+  { id: "d18", date: "2026-07-24", symbol: "0050", type: "DIVIDEND", shares: 10000, price: 0.95, fee: 10, fxRate: 1, fundingTag: "自有資金", note: "2026 配息入帳" },
+  { id: "d19", date: "2026-08-18", symbol: "VT", type: "BUY", shares: 15, price: 139.0, fee: 0, fxRate: 32.5, fundingTag: "2025示範信貸", note: "示範信貸加碼：全球分散" },
+];
+
+export const DEMO_LOANS: LoanFacility[] = [
+  {
+    id: "demo-loan-2025",
+    name: "2025 示範信貸方案",
+    fundingTag: "2025示範信貸",
+    startDate: "2025-11-20",
+    principalTwd: 200000,
+    disbursedTwd: 198000,
+    wireFeeTwd: 400,
+    receivedUsd: 6250,
+    apr: 0.025,
+    termMonths: 84,
+    monthlyPaymentTwd: null,
+    totalInterestOverrideTwd: null,
+    note: "內建 Demo 模擬信貸（對應 2025示範信貸 交易標籤）",
+  },
 ];
 
 export const DEMO_CASH_SNAPSHOTS: CashSnapshot[] = [
@@ -60,6 +79,7 @@ export function createDemoSheetsData(): PortfolioSheetsData {
     assets: DEFAULT_DEMO_ASSETS,
     cashSnapshots: DEMO_CASH_SNAPSHOTS,
     benchmarks: DEFAULT_DEMO_BENCHMARKS,
+    loans: DEMO_LOANS,
     syncedAt: new Date().toISOString(),
     source: "demo",
   };

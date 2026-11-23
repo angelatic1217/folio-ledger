@@ -13,6 +13,7 @@ import {
 import { formatMoney, formatPercent } from "@/lib/utils";
 import type { MarketDataBundle } from "@/types/market";
 import type {
+  PortfolioLeverageSummary,
   PortfolioScope,
   QuantEngineOutput,
   TimeRangePreset,
@@ -33,7 +34,10 @@ interface OverviewViewProps {
   market: MarketDataBundle;
   scope: PortfolioScope;
   currency: CurrencyCode;
+  fundingFilter?: string;
+  leverage?: PortfolioLeverageSummary | null;
   onNavigateMdd: () => void;
+  onNavigateLoans?: () => void;
 }
 
 export function OverviewView({
@@ -42,7 +46,10 @@ export function OverviewView({
   market,
   scope,
   currency,
+  fundingFilter = "ALL",
+  leverage,
   onNavigateMdd,
+  onNavigateLoans,
 }: OverviewViewProps) {
   const [range, setRange] = useState<TimeRangePreset>("1Y");
   const [enabledBenchmarks, setEnabledBenchmarks] = useState<Record<string, boolean>>({
@@ -151,7 +158,12 @@ export function OverviewView({
       {/* Header + Time Range Selector */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold">總覽與水下風控儀表板</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold">總覽與水下風控儀表板</h2>
+            {fundingFilter !== "ALL" && (
+              <Badge variant="default">資金篩選：#{fundingFilter}</Badge>
+            )}
+          </div>
           <p className="text-xs text-[var(--muted-foreground)]">
             {scope === "total"
               ? "含現金全資產（台股 + 美股 + 現金快照）"
@@ -388,6 +400,31 @@ export function OverviewView({
                 <CheckCircle2 className="h-3.5 w-3.5" /> 已啟用 (含 0050 1拆4)
               </span>
             </div>
+            {fundingFilter === "ALL" && leverage && leverage.facilities.length > 0 && (
+              <>
+                <div className="flex justify-between border-t border-[var(--border)] pt-2">
+                  <span className="text-[var(--muted-foreground)]">
+                    自有淨值（扣剩餘信貸）
+                  </span>
+                  <span className="font-mono font-semibold tabular-nums">
+                    {formatMoney(leverage.netWorthTwd, currency, engine.latestFxRate)}
+                    {leverage.leverageRatio
+                      ? ` (${leverage.leverageRatio.toFixed(2)}x)`
+                      : ""}
+                  </span>
+                </div>
+                {onNavigateLoans && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={onNavigateLoans}
+                  >
+                    <span>檢視信貸槓桿與 84 期攤還總覽</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
             <Button
               variant="outline"
               className="mt-2 w-full justify-between"

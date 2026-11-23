@@ -1,0 +1,3 @@
+id,name,funding_tag,start_date,principal_twd,disbursed_twd,wire_fee_twd,received_usd,apr,term_months,monthly_payment_twd,total_interest_twd,note
+loan-2025,2025 首期信貸（範例）,2025信貸,2025-07-01,1000000,995000,400,31000,0.025,84,12989,,84 期本息均攤（total_interest_twd 留空時由 PMT 自動計算）
+loan-2026,2026 增貸方案（範例）,2026增貸,2026-06-01,500000,496000,400,15200,0.029,84,6586,,轉增貸新增額度範例

@@ -131,6 +131,7 @@ export function buildFullExportJson(params: {
       assets: sheets.assets,
       cashSnapshots: sheets.cashSnapshots,
       benchmarks: sheets.benchmarks,
+      loans: sheets.loans ?? [],
     },
     mddMatrix: engine.mddMatrix.map(({ underwaterSeries, ...rest }) => ({
       ...rest,
@@ -200,6 +201,19 @@ export function buildAnonymizedDiagnosticJson(params: {
         price: t.price,
         feeScaled: r2(t.fee),
         fxRate: t.fxRate ?? null,
+        fundingTag: t.fundingTag ?? null,
+      })),
+      loansScaled: (sheets.loans ?? []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        fundingTag: l.fundingTag,
+        startDate: l.startDate,
+        principalScaled: r2(l.principalTwd),
+        disbursedScaled: r2(l.disbursedTwd),
+        wireFeeScaled: r2(l.wireFeeTwd),
+        receivedUsdScaled: l.receivedUsd ? r2(l.receivedUsd) : null,
+        apr: l.apr,
+        termMonths: l.termMonths,
       })),
     },
     mddMatrix: engine.mddMatrix.map(({ underwaterSeries, ...row }) => ({
@@ -376,11 +390,11 @@ export function buildAnnualPerformanceCsv(engine: QuantEngineOutput): string {
 
 export function buildSheetTabCsv(
   sheets: PortfolioSheetsData,
-  tab: "transactions" | "assets" | "cash_snapshots" | "benchmarks"
+  tab: "transactions" | "assets" | "cash_snapshots" | "benchmarks" | "loans"
 ): string {
   if (tab === "transactions") {
     return toCsv(
-      ["date", "symbol", "type", "shares", "price", "fee", "fx_rate", "note"],
+      ["date", "symbol", "type", "shares", "price", "fee", "fx_rate", "funding_tag", "note"],
       sheets.transactions.map((t) => [
         t.date,
         t.symbol,
@@ -389,6 +403,7 @@ export function buildSheetTabCsv(
         t.price,
         t.fee,
         t.fxRate ?? "",
+        t.fundingTag ?? "",
         t.note ?? "",
       ])
     );
@@ -410,6 +425,40 @@ export function buildSheetTabCsv(
     return toCsv(
       ["date", "currency", "balance", "note"],
       sheets.cashSnapshots.map((c) => [c.date, c.currency, c.balance, c.note ?? ""])
+    );
+  }
+  if (tab === "loans") {
+    return toCsv(
+      [
+        "id",
+        "name",
+        "funding_tag",
+        "start_date",
+        "principal_twd",
+        "disbursed_twd",
+        "wire_fee_twd",
+        "received_usd",
+        "apr",
+        "term_months",
+        "monthly_payment_twd",
+        "total_interest_twd",
+        "note",
+      ],
+      (sheets.loans ?? []).map((l) => [
+        l.id,
+        l.name,
+        l.fundingTag,
+        l.startDate,
+        l.principalTwd,
+        l.disbursedTwd,
+        l.wireFeeTwd,
+        l.receivedUsd ?? "",
+        l.apr,
+        l.termMonths,
+        l.monthlyPaymentTwd ?? "",
+        l.totalInterestOverrideTwd ?? "",
+        l.note ?? "",
+      ])
     );
   }
   return toCsv(

@@ -6,6 +6,7 @@ import {
   CalendarRange,
   Database,
   Download,
+  Landmark,
   LayoutDashboard,
   Moon,
   RefreshCw,
@@ -22,6 +23,7 @@ import { Badge, Button } from "@/components/ui/primitives";
 import { AnnualAlphaView } from "@/components/views/AnnualAlphaView";
 import { DynamicPeriodView } from "@/components/views/DynamicPeriodView";
 import { LedgerSchemaView } from "@/components/views/LedgerSchemaView";
+import { LoansLeverageView } from "@/components/views/LoansLeverageView";
 import { MddMatrixView } from "@/components/views/MddMatrixView";
 import { OverviewView } from "@/components/views/OverviewView";
 import {
@@ -30,11 +32,13 @@ import {
 } from "@/lib/demo/fixtures";
 import { syncPrivateGoogleSheet } from "@/lib/google/sheets-client";
 import { runQuantEngine } from "@/lib/quant/engine";
+import { computePortfolioLeverageSummary } from "@/lib/quant/loan";
 import {
   parseAssetsGrid,
   parseBenchmarksGrid,
   parseCashSnapshotsGrid,
   parseCsvToGrid,
+  parseLoansGrid,
   parseTransactionsGrid,
 } from "@/lib/sheets/parser";
 import {
@@ -51,7 +55,7 @@ import type { MarketDataBundle } from "@/types/market";
 import type { PortfolioScope } from "@/types/quant";
 import type { CurrencyCode, PortfolioSheetsData } from "@/types/sheet";
 
-type NavTab = "overview" | "mdd" | "period" | "annual" | "ledger";
+type NavTab = "overview" | "loans" | "mdd" | "period" | "annual" | "ledger";
 
 export default function HomePage() {
   const { theme, setTheme } = useTheme();
@@ -66,6 +70,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [scope, setScope] = useState<PortfolioScope>("invested");
   const [currency, setCurrency] = useState<CurrencyCode>("TWD");
+  const [fundingFilter, setFundingFilter] = useState<string>("ALL");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [toast, setToast] = useState<{ title: string; body?: string; error?: boolean } | null>(
@@ -114,10 +119,49 @@ export default function HomePage() {
     };
   }, []);
 
-  const engine = useMemo(() => {
+  const availableFundingTags = useMemo(() => {
+    if (!sheets) return [];
+    const set = new Set<string>();
+    for (const tx of sheets.transactions) {
+      set.add(tx.fundingTag?.trim() || "自有資金");
+    }
+    for (const l of sheets.loans ?? []) {
+      if (l.fundingTag.trim()) set.add(l.fundingTag.trim());
+    }
+    return Array.from(set);
+  }, [sheets]);
+
+  const effectiveFundingFilter =
+    fundingFilter === "ALL" || availableFundingTags.includes(fundingFilter)
+      ? fundingFilter
+      : "ALL";
+
+  const filteredSheets = useMemo(() => {
+    if (!sheets || effectiveFundingFilter === "ALL") return sheets;
+    return {
+      ...sheets,
+      transactions: sheets.transactions.filter(
+        (tx) => (tx.fundingTag?.trim() || "自有資金") === effectiveFundingFilter
+      ),
+      cashSnapshots: [],
+    };
+  }, [sheets, effectiveFundingFilter]);
+
+  const fullEngine = useMemo(() => {
     if (!sheets || !market) return null;
     return runQuantEngine(sheets, market, settings.mddThresholds);
   }, [sheets, market, settings.mddThresholds]);
+
+  const engine = useMemo(() => {
+    if (!filteredSheets || !market) return null;
+    if (effectiveFundingFilter === "ALL") return fullEngine;
+    return runQuantEngine(filteredSheets, market, settings.mddThresholds);
+  }, [filteredSheets, market, settings.mddThresholds, effectiveFundingFilter, fullEngine]);
+
+  const leverageSummary = useMemo(() => {
+    if (!sheets || !market || !fullEngine) return null;
+    return computePortfolioLeverageSummary({ sheets, market, engine: fullEngine });
+  }, [sheets, market, fullEngine]);
 
   const handleSaveSettings = async (next: LocalAppSettings) => {
     setSettings(next);
@@ -141,9 +185,12 @@ export default function HomePage() {
         saveLocalSettings(nextSettings),
         saveCachedSheetsData(synced),
       ]);
+      const loanCount = synced.loans?.length ?? 0;
       showToast(
         "Google Sheet 同步完成",
-        `已讀取 ${synced.transactions.length} 筆交易、${synced.assets.length} 檔標的並更新本地快取`
+        `已讀取 ${synced.transactions.length} 筆交易、${synced.assets.length} 檔標的${
+          loanCount > 0 ? `、${loanCount} 筆信貸方案` : ""
+        }並更新本地快取`
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "同步失敗";
@@ -154,7 +201,7 @@ export default function HomePage() {
   };
 
   const handleImportCsvFile = async (
-    tab: "transactions" | "assets" | "cash_snapshots" | "benchmarks",
+    tab: "transactions" | "assets" | "cash_snapshots" | "benchmarks" | "loans",
     file: File
   ) => {
     try {
@@ -186,6 +233,12 @@ export default function HomePage() {
         updated = { ...updated, cashSnapshots: parseCashSnapshotsGrid(grid) };
       } else if (tab === "benchmarks") {
         updated = { ...updated, benchmarks: parseBenchmarksGrid(grid) };
+      } else if (tab === "loans") {
+        const parsedLoans = parseLoansGrid(grid);
+        if (parsedLoans.length === 0) {
+          throw new Error("CSV 中找不到有效信貸方案（需含 start_date 與 principal_twd 欄位）");
+        }
+        updated = { ...updated, loans: parsedLoans };
       }
 
       const nextSettings: LocalAppSettings = { ...settings, activeMode: "local" };
@@ -260,6 +313,7 @@ export default function HomePage() {
 
   const navItems: Array<{ key: NavTab; label: string; icon: typeof LayoutDashboard }> = [
     { key: "overview", label: "總覽與水下風控", icon: LayoutDashboard },
+    { key: "loans", label: "信貸槓桿與攤還", icon: Landmark },
     { key: "mdd", label: "即時 MDD 監控矩陣", icon: ShieldAlert },
     { key: "period", label: "動態區間與匯率歸因", icon: CalendarRange },
     { key: "annual", label: "歷年績效與基準 Alpha", icon: BarChart3 },
@@ -301,6 +355,23 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Funding Tag Filter (when multiple funding sources exist) */}
+            {availableFundingTags.length > 1 && (
+              <select
+                aria-label="資金來源篩選"
+                value={effectiveFundingFilter}
+                onChange={(e) => setFundingFilter(e.target.value)}
+                className="min-h-8 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-xs font-medium text-[var(--foreground)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+              >
+                <option value="ALL">全部資金來源</option>
+                {availableFundingTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    僅看 #{tag}
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* Portfolio Scope Switch */}
             <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--background)] p-0.5 text-xs">
               <button
@@ -440,14 +511,28 @@ export default function HomePage() {
 
         {/* Active View */}
         <main className="flex-1 overflow-x-hidden p-4 lg:p-6">
-          {activeTab === "overview" && (
+          {activeTab === "overview" && filteredSheets && (
             <OverviewView
               engine={engine}
-              sheets={sheets}
+              sheets={filteredSheets}
               market={market}
               scope={scope}
               currency={currency}
+              fundingFilter={effectiveFundingFilter}
+              leverage={leverageSummary}
               onNavigateMdd={() => setActiveTab("mdd")}
+              onNavigateLoans={() => setActiveTab("loans")}
+            />
+          )}
+          {activeTab === "loans" && leverageSummary && (
+            <LoansLeverageView
+              leverage={leverageSummary}
+              currency={currency}
+              onNavigateLedger={() => setActiveTab("ledger")}
+              onSelectFundingFilter={(tag) => {
+                setFundingFilter(tag);
+                setActiveTab("overview");
+              }}
             />
           )}
           {activeTab === "mdd" && (
@@ -456,10 +541,10 @@ export default function HomePage() {
               thresholds={settings.mddThresholds}
             />
           )}
-          {activeTab === "period" && (
+          {activeTab === "period" && filteredSheets && (
             <DynamicPeriodView
               engine={engine}
-              sheets={sheets}
+              sheets={filteredSheets}
               market={market}
               scope={scope}
               currency={currency}

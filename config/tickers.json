@@ -10,7 +10,7 @@
     { "symbol": "VOO", "yahooTicker": "VOO", "name": "Vanguard S&P 500", "market": "US", "currency": "USD" },
     { "symbol": "VT", "yahooTicker": "VT", "name": "Vanguard Total World", "market": "US", "currency": "USD" },
     { "symbol": "VXUS", "yahooTicker": "VXUS", "name": "Vanguard Total Intl Stock", "market": "US", "currency": "USD" },
-    { "symbol": "VALU.LON", "yahooTicker": "VALU.L", "name": "Vanguard Global All-Cap UCITS (USD Acc)", "market": "US", "currency": "USD" },
+    { "symbol": "VALU.LON", "yahooTicker": "VALU.L", "name": "iShares MSCI World Value (LON:VALU)", "market": "US", "currency": "USD" },
     { "symbol": "NVDA", "yahooTicker": "NVDA", "name": "NVIDIA", "market": "US", "currency": "USD" },
     { "symbol": "AOA", "yahooTicker": "AOA", "name": "iShares 股債平衡 ETF", "market": "US", "currency": "USD" },
     { "symbol": "SOXX", "yahooTicker": "SOXX", "name": "iShares 半導體 ETF", "market": "US", "currency": "USD" },

@@ -8,6 +8,7 @@ import {
   parseAssetsGrid,
   parseBenchmarksGrid,
   parseCashSnapshotsGrid,
+  parseLoansGrid,
   parseTransactionsGrid,
 } from "../sheets/parser";
 import { DEFAULT_DEMO_BENCHMARKS } from "../demo/fixtures";
@@ -161,16 +162,20 @@ export async function syncPrivateGoogleSheet(params: {
     throw new Error("找不到 `transactions`（或 `交易紀錄`）分頁，或該分頁尚無資料列");
   }
 
-  const [assetsGrid, cashGrid, benchGrid] = await Promise.all([
-    fetchSheetRange(sheetId, "assets!A:H", token),
-    fetchSheetRange(sheetId, "cash_snapshots!A:F", token),
-    fetchSheetRange(sheetId, "benchmarks!A:F", token),
-  ]);
+  const [assetsGrid, cashGrid, benchGrid, loansGridPrimary, loansGridZh] =
+    await Promise.all([
+      fetchSheetRange(sheetId, "assets!A:H", token),
+      fetchSheetRange(sheetId, "cash_snapshots!A:F", token),
+      fetchSheetRange(sheetId, "benchmarks!A:F", token),
+      fetchSheetRange(sheetId, "loans!A:N", token),
+      fetchSheetRange(sheetId, "信貸方案!A:N", token),
+    ]);
 
   const transactions = parseTransactionsGrid(txGrid);
   const assets = parseAssetsGrid(assetsGrid ?? [], transactions);
   const cashSnapshots = parseCashSnapshotsGrid(cashGrid ?? []);
   const parsedBenchmarks = parseBenchmarksGrid(benchGrid ?? []);
+  const loans = parseLoansGrid(loansGridPrimary ?? loansGridZh ?? []);
 
   return {
     transactions,
@@ -178,6 +183,7 @@ export async function syncPrivateGoogleSheet(params: {
     cashSnapshots,
     benchmarks:
       parsedBenchmarks.length > 0 ? parsedBenchmarks : DEFAULT_DEMO_BENCHMARKS,
+    loans,
     syncedAt: new Date().toISOString(),
     source: "google-sheets",
   };

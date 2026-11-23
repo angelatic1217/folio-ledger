@@ -4,10 +4,35 @@ import type {
   BenchmarkScope,
   CashSnapshot,
   CurrencyCode,
+  LoanFacility,
   MarketCode,
   Transaction,
   TransactionType,
 } from "@/types/sheet";
+
+const SYMBOL_ALIASES: Record<string, string> = {
+  "LON:VALU": "VALU.LON",
+  "VALU.L": "VALU.LON",
+};
+
+export function normalizeSymbol(raw: unknown): string {
+  const cleaned = String(raw ?? "").trim().toUpperCase();
+  if (!cleaned) return "";
+  if (SYMBOL_ALIASES[cleaned]) return SYMBOL_ALIASES[cleaned];
+  // Extract leading TW stock ticker when mixed with Chinese name (e.g. "006208富邦台50" -> "006208")
+  const twMatch = cleaned.match(/^(\d{4,6}[A-Z]?)[\u4e00-\u9fff]/);
+  if (twMatch) return twMatch[1];
+  return cleaned;
+}
+
+export function normalizeFundingTag(raw: unknown): string | undefined {
+  const s = String(raw ?? "")
+    .trim()
+    .replace(/^\[+/, "")
+    .replace(/\]+$/, "")
+    .trim();
+  return s || undefined;
+}
 
 function normalizeHeader(h: string): string {
   return String(h || "")
@@ -19,10 +44,19 @@ function normalizeHeader(h: string): string {
 function parseNumber(val: unknown): number {
   if (typeof val === "number") return Number.isFinite(val) ? val : 0;
   const cleaned = String(val ?? "")
-    .replace(/[,$\sNT]/gi, "")
+    .replace(/[,$\sNT%]/gi, "")
     .trim();
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
+}
+
+function parseRate(val: unknown): number {
+  const rawStr = String(val ?? "").trim();
+  if (!rawStr) return 0;
+  const hasPercent = rawStr.includes("%");
+  const num = parseNumber(val);
+  if (hasPercent || num > 1) return num / 100;
+  return num;
 }
 
 function parseDate(val: unknown): string {
@@ -36,10 +70,26 @@ function parseDate(val: unknown): string {
 
 function parseTxType(val: unknown): TransactionType | null {
   const s = String(val ?? "").trim().toUpperCase();
-  if (s === "BUY" || s === "買入" || s === "買進") return "BUY";
-  if (s === "SELL" || s === "賣出") return "SELL";
-  if (s === "DIVIDEND" || s === "現金股利" || s === "股利" || s === "配息") return "DIVIDEND";
-  if (s === "DRIP" || s === "股息再投資" || s === "配息再投入") return "DRIP";
+  if (
+    s === "BUY" ||
+    s === "買入" ||
+    s === "買進" ||
+    s === "首次建倉" ||
+    s === "增貸建倉" ||
+    s === "買入配置" ||
+    s === "定期定額"
+  ) {
+    return "BUY";
+  }
+  if (s === "SELL" || s === "賣出" || s === "賣出換股" || s === "賣出平倉") {
+    return "SELL";
+  }
+  if (s === "DIVIDEND" || s === "現金股利" || s === "股利" || s === "配息") {
+    return "DIVIDEND";
+  }
+  if (s === "DRIP" || s === "股息再投資" || s === "股息再投入" || s === "配息再投入") {
+    return "DRIP";
+  }
   return null;
 }
 
@@ -119,14 +169,22 @@ export function parseTransactionsGrid(grid: unknown[][]): Transaction[] {
   if (grid.length < 2) return [];
   const headers = grid[0].map((h) => normalizeHeader(String(h ?? "")));
 
-  const iDate = findCol(headers, ["date", "日期"]);
+  const iDate = findCol(headers, ["date", "日期", "交易日期"]);
   const iSymbol = findCol(headers, ["symbol", "標的代號", "代碼"]);
   const iType = findCol(headers, ["type", "交易類別", "類別"]);
-  const iShares = findCol(headers, ["shares", "股數", "數量"]);
-  const iPrice = findCol(headers, ["price", "成交單價", "單價"]);
+  const iShares = findCol(headers, ["shares", "股數", "數量", "變動股數"]);
+  const iPrice = findCol(headers, ["price", "成交單價", "單價", "成交單價_(usd)"]);
   const iFee = findCol(headers, ["fee", "手續費與稅", "手續費"]);
-  const iFx = findCol(headers, ["fx_rate", "當日匯率", "匯率"]);
-  const iNote = findCol(headers, ["note", "備註", "說明"]);
+  const iFx = findCol(headers, ["fx_rate", "當日匯率", "匯率", "參考匯率"]);
+  const iTag = findCol(headers, [
+    "funding_tag",
+    "tag",
+    "資金來源標籤",
+    "資金來源",
+    "帳戶",
+    "方案",
+  ]);
+  const iNote = findCol(headers, ["note", "備註", "說明", "交易備註說明"]);
 
   if (iDate === -1 || iSymbol === -1 || iType === -1) return [];
 
@@ -135,14 +193,16 @@ export function parseTransactionsGrid(grid: unknown[][]): Transaction[] {
     const row = grid[r];
     if (!row || row.length === 0) continue;
     const date = parseDate(row[iDate]);
-    const symbol = String(row[iSymbol] ?? "").trim().toUpperCase();
+    const symbol = normalizeSymbol(row[iSymbol]);
     const type = parseTxType(row[iType]);
     if (!date || !symbol || !type) continue;
 
-    const shares = iShares >= 0 ? parseNumber(row[iShares]) : 0;
-    const price = iPrice >= 0 ? parseNumber(row[iPrice]) : 0;
-    const fee = iFee >= 0 ? parseNumber(row[iFee]) : 0;
+    const rawShares = iShares >= 0 ? parseNumber(row[iShares]) : 0;
+    const shares = Math.abs(rawShares);
+    const price = iPrice >= 0 ? Math.abs(parseNumber(row[iPrice])) : 0;
+    const fee = iFee >= 0 ? Math.abs(parseNumber(row[iFee])) : 0;
     const rawFx = iFx >= 0 ? parseNumber(row[iFx]) : 0;
+    const fundingTag = iTag >= 0 ? normalizeFundingTag(row[iTag]) : undefined;
     const note = iNote >= 0 ? String(row[iNote] ?? "").trim() : undefined;
 
     result.push({
@@ -154,6 +214,7 @@ export function parseTransactionsGrid(grid: unknown[][]): Transaction[] {
       price,
       fee,
       fxRate: rawFx > 0 ? rawFx : null,
+      fundingTag,
       note: note || undefined,
     });
   }
@@ -181,7 +242,7 @@ export function parseAssetsGrid(
       for (let r = 1; r < grid.length; r++) {
         const row = grid[r];
         if (!row) continue;
-        const symbol = String(row[iSymbol] ?? "").trim().toUpperCase();
+        const symbol = normalizeSymbol(row[iSymbol]);
         if (!symbol || seen.has(symbol)) continue;
         seen.add(symbol);
 
@@ -284,4 +345,81 @@ export function parseBenchmarksGrid(grid: unknown[][]): BenchmarkConfig[] {
   }
 
   return result;
+}
+
+export function parseLoansGrid(grid: unknown[][]): LoanFacility[] {
+  if (grid.length < 2) return [];
+  const headers = grid[0].map((h) => normalizeHeader(String(h ?? "")));
+
+  const iId = findCol(headers, ["id", "代碼", "方案代碼"]);
+  const iName = findCol(headers, ["name", "方案名稱", "名稱", "貸款名稱"]);
+  const iTag = findCol(headers, ["funding_tag", "tag", "資金來源標籤", "資金來源", "標籤"]);
+  const iStartDate = findCol(headers, ["start_date", "撥款日", "起始日", "日期"]);
+  const iPrincipal = findCol(headers, ["principal_twd", "principal", "核貸本金", "核貸總本金", "本金"]);
+  const iDisbursed = findCol(headers, ["disbursed_twd", "disbursed", "實撥金額", "實際撥款金額"]);
+  const iWireFee = findCol(headers, ["wire_fee_twd", "wire_fee", "匯費", "規費"]);
+  const iReceivedUsd = findCol(headers, ["received_usd", "實收美金", "券商實收到款"]);
+  const iApr = findCol(headers, ["apr", "年利率", "利率"]);
+  const iTerm = findCol(headers, ["term_months", "term", "期數"]);
+  const iMonthly = findCol(headers, ["monthly_payment_twd", "monthly_payment", "月還款", "每月償還"]);
+  const iTotalInterest = findCol(headers, [
+    "total_interest_twd",
+    "total_interest_override_twd",
+    "全期總利息",
+    "總利息",
+  ]);
+  const iNote = findCol(headers, ["note", "備註", "說明"]);
+
+  if (iPrincipal === -1 && iDisbursed === -1) return [];
+
+  const result: LoanFacility[] = [];
+  for (let r = 1; r < grid.length; r++) {
+    const row = grid[r];
+    if (!row || row.length === 0) continue;
+
+    const principalTwd = iPrincipal >= 0 ? Math.abs(parseNumber(row[iPrincipal])) : 0;
+    const rawDisbursed = iDisbursed >= 0 ? Math.abs(parseNumber(row[iDisbursed])) : 0;
+    const disbursedTwd = rawDisbursed > 0 ? rawDisbursed : principalTwd;
+    if (principalTwd <= 0 && disbursedTwd <= 0) continue;
+
+    const startDate = parseDate(iStartDate >= 0 ? row[iStartDate] : "");
+    if (!startDate) continue;
+
+    const name =
+      (iName >= 0 ? String(row[iName] ?? "").trim() : "") ||
+      `信貸方案 ${r}`;
+    const fundingTag =
+      (iTag >= 0 ? normalizeFundingTag(row[iTag]) : undefined) ?? name;
+    const id =
+      (iId >= 0 ? String(row[iId] ?? "").trim() : "") || `loan-${r}-${fundingTag}`;
+    const wireFeeTwd = iWireFee >= 0 ? Math.abs(parseNumber(row[iWireFee])) : 0;
+    const rawReceivedUsd = iReceivedUsd >= 0 ? Math.abs(parseNumber(row[iReceivedUsd])) : 0;
+    const apr = iApr >= 0 ? Math.max(0, parseRate(row[iApr])) : 0;
+    const termMonths = Math.max(
+      1,
+      Math.round(iTerm >= 0 ? Math.abs(parseNumber(row[iTerm])) : 84) || 84
+    );
+    const rawMonthly = iMonthly >= 0 ? Math.abs(parseNumber(row[iMonthly])) : 0;
+    const rawTotalInterest =
+      iTotalInterest >= 0 ? Math.abs(parseNumber(row[iTotalInterest])) : 0;
+    const note = iNote >= 0 ? String(row[iNote] ?? "").trim() : undefined;
+
+    result.push({
+      id,
+      name,
+      fundingTag,
+      startDate,
+      principalTwd: principalTwd > 0 ? principalTwd : disbursedTwd,
+      disbursedTwd,
+      wireFeeTwd,
+      receivedUsd: rawReceivedUsd > 0 ? rawReceivedUsd : null,
+      apr,
+      termMonths,
+      monthlyPaymentTwd: rawMonthly > 0 ? rawMonthly : null,
+      totalInterestOverrideTwd: rawTotalInterest > 0 ? rawTotalInterest : null,
+      note: note || undefined,
+    });
+  }
+
+  return result.sort((a, b) => a.startDate.localeCompare(b.startDate));
 }

@@ -167,7 +167,7 @@ export function ExportModal({
                   完整備份 + 運算結果 (.json)
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  包含原始未縮放的 4 張試算表資料、全部每日淨值/TWR/水下序列、MDD 矩陣與歷年 Alpha，適合本機完整備份。
+                  包含原始未縮放的 5 張試算表資料（含信貸方案）、全部每日淨值/TWR/水下序列、MDD 矩陣與歷年 Alpha，適合本機完整備份。
                 </p>
               </div>
               <Button
@@ -255,7 +255,9 @@ export function ExportModal({
             匯出目前同步的原始試算表分頁 (.csv)
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["transactions", "assets", "cash_snapshots", "benchmarks"] as const).map(
+            {(
+              ["transactions", "assets", "cash_snapshots", "benchmarks", "loans"] as const
+            ).map(
               (tab) => (
                 <Button
                   key={tab}
