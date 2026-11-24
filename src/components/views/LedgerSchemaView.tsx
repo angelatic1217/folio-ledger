@@ -62,7 +62,7 @@ export function LedgerSchemaView({
         .map((t) => [
           t.date,
           t.symbol,
-          t.type,
+          t.type === "SELL" && t.withdrawProceeds ? "SELLOUT" : t.type,
           fmtMask(String(t.shares), "••••"),
           String(t.price),
           fmtMask(String(t.fee), "•••"),

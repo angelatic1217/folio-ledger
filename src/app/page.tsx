@@ -35,6 +35,11 @@ import {
 import { syncPrivateGoogleSheet } from "@/lib/google/sheets-client";
 import { usePrivacy } from "@/lib/privacy/context";
 import { runQuantEngine } from "@/lib/quant/engine";
+import {
+  allocateTransactionsByFundingTag,
+  buildSplitsBySymbol,
+  DEFAULT_OWN_FUNDING_TAG,
+} from "@/lib/quant/funding";
 import { computePortfolioLeverageSummary } from "@/lib/quant/loan";
 import {
   parseAssetsGrid,
@@ -140,16 +145,27 @@ export default function HomePage() {
       ? fundingFilter
       : "ALL";
 
+  const allocatedTransactions = useMemo(() => {
+    if (!sheets || !market) return [];
+    return allocateTransactionsByFundingTag({
+      transactions: sheets.transactions,
+      assets: sheets.assets,
+      splitsBySymbol: buildSplitsBySymbol(market, sheets.assets),
+    });
+  }, [sheets, market]);
+
   const filteredSheets = useMemo(() => {
     if (!sheets || effectiveFundingFilter === "ALL") return sheets;
     return {
       ...sheets,
-      transactions: sheets.transactions.filter(
-        (tx) => (tx.fundingTag?.trim() || "自有資金") === effectiveFundingFilter
+      transactions: allocatedTransactions.filter(
+        (tx) =>
+          (tx.fundingTag?.trim() || DEFAULT_OWN_FUNDING_TAG) ===
+          effectiveFundingFilter
       ),
       cashSnapshots: [],
     };
-  }, [sheets, effectiveFundingFilter]);
+  }, [sheets, allocatedTransactions, effectiveFundingFilter]);
 
   const fullEngine = useMemo(() => {
     if (!sheets || !market) return null;
@@ -318,7 +334,7 @@ export default function HomePage() {
   const navItems: Array<{ key: NavTab; label: string; icon: typeof LayoutDashboard }> = [
     { key: "overview", label: "總覽與水下風控", icon: LayoutDashboard },
     { key: "loans", label: "信貸槓桿與攤還", icon: Landmark },
-    { key: "mdd", label: "即時 MDD 監控矩陣", icon: ShieldAlert },
+    { key: "mdd", label: "個別標的監控", icon: ShieldAlert },
     { key: "period", label: "動態區間與匯率歸因", icon: CalendarRange },
     { key: "annual", label: "歷年績效與基準 Alpha", icon: BarChart3 },
     { key: "ledger", label: "試算表資料與匯入", icon: Database },
@@ -548,6 +564,7 @@ export default function HomePage() {
               leverage={leverageSummary}
               onNavigateMdd={() => setActiveTab("mdd")}
               onNavigateLoans={() => setActiveTab("loans")}
+              onNavigateAnnual={() => setActiveTab("annual")}
             />
           )}
           {activeTab === "loans" && leverageSummary && (
@@ -561,9 +578,17 @@ export default function HomePage() {
               }}
             />
           )}
-          {activeTab === "mdd" && (
+          {activeTab === "mdd" && filteredSheets && (
             <MddMatrixView
               rows={engine.mddMatrix}
+              performanceRows={engine.symbolPerformance}
+              transactions={filteredSheets.transactions}
+              assets={filteredSheets.assets}
+              market={market}
+              asOfDate={engine.asOfDate}
+              latestFxRate={engine.latestFxRate}
+              currency={currency}
+              fundingFilter={effectiveFundingFilter}
               thresholds={settings.mddThresholds}
             />
           )}

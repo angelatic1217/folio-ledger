@@ -69,7 +69,9 @@ function parseDate(val: unknown): string {
   return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
 }
 
-function parseTxType(val: unknown): TransactionType | null {
+function parseTxAction(
+  val: unknown
+): { type: TransactionType; withdrawProceeds?: boolean } | null {
   const s = String(val ?? "").trim().toUpperCase();
   if (
     s === "BUY" ||
@@ -80,16 +82,24 @@ function parseTxType(val: unknown): TransactionType | null {
     s === "買入配置" ||
     s === "定期定額"
   ) {
-    return "BUY";
+    return { type: "BUY" };
+  }
+  if (
+    s === "SELLOUT" ||
+    s === "SELL_OUT" ||
+    s === "SELL-OUT" ||
+    s === "賣出出金"
+  ) {
+    return { type: "SELL", withdrawProceeds: true };
   }
   if (s === "SELL" || s === "賣出" || s === "賣出換股" || s === "賣出平倉") {
-    return "SELL";
+    return { type: "SELL" };
   }
   if (s === "DIVIDEND" || s === "現金股利" || s === "股利" || s === "配息") {
-    return "DIVIDEND";
+    return { type: "DIVIDEND" };
   }
   if (s === "DRIP" || s === "股息再投資" || s === "股息再投入" || s === "配息再投入") {
-    return "DRIP";
+    return { type: "DRIP" };
   }
   return null;
 }
@@ -195,8 +205,8 @@ export function parseTransactionsGrid(grid: unknown[][]): Transaction[] {
     if (!row || row.length === 0) continue;
     const date = parseDate(row[iDate]);
     const symbol = normalizeSymbol(row[iSymbol]);
-    const type = parseTxType(row[iType]);
-    if (!date || !symbol || !type) continue;
+    const action = parseTxAction(row[iType]);
+    if (!date || !symbol || !action) continue;
 
     const rawShares = iShares >= 0 ? parseNumber(row[iShares]) : 0;
     const shares = Math.abs(rawShares);
@@ -210,12 +220,13 @@ export function parseTransactionsGrid(grid: unknown[][]): Transaction[] {
       id: `tx-${r}-${date}-${symbol}`,
       date,
       symbol,
-      type,
+      type: action.type,
       shares,
       price,
       fee,
       fxRate: rawFx > 0 ? rawFx : null,
       fundingTag,
+      ...(action.withdrawProceeds ? { withdrawProceeds: true } : {}),
       note: note || undefined,
     });
   }

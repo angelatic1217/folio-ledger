@@ -8,6 +8,7 @@ import type {
 } from "@/types/quant";
 import type { Asset, LoanFacility, LoanStatus, PortfolioSheetsData, Transaction } from "@/types/sheet";
 import { diffCalendarDays, findBarOnOrBefore } from "./calendar";
+import { allocateTransactionsByFundingTag, buildSplitsBySymbol } from "./funding";
 import { computeHoldingsAsOf } from "./holdings";
 import { computeAnnualizedReturn } from "./returns";
 
@@ -170,24 +171,42 @@ export function buildAmortizationSchedule(
 export function computeLoanFacilitySummary(params: {
   loan: LoanFacility;
   transactions: Transaction[];
+  allocatedTransactions?: Transaction[];
   assets: Asset[];
   market: MarketDataBundle;
   asOfDate: string;
   latestFxRate: number;
 }): LoanFacilitySummary {
-  const { loan, transactions, assets, market, asOfDate, latestFxRate } = params;
-
-  const taggedTxs = transactions.filter(
-    (tx) => (tx.fundingTag ?? "").trim() === loan.fundingTag.trim()
-  );
+  const {
+    loan,
+    transactions,
+    allocatedTransactions,
+    assets,
+    market,
+    asOfDate,
+    latestFxRate,
+  } = params;
 
   const assetMap = new Map(assets.map((a) => [a.symbol, a]));
   const currencyBySymbol: Record<string, string> = {};
-  const splitsBySymbol: Record<string, { date: string; ratio: number }[]> = {};
+  const splitsBySymbol = buildSplitsBySymbol(market, assets);
   for (const a of assets) {
     currencyBySymbol[a.symbol] = a.currency;
-    splitsBySymbol[a.symbol] = market.tickers[a.symbol]?.splits ?? [];
   }
+
+  const effectiveTxs =
+    allocatedTransactions ??
+    allocateTransactionsByFundingTag({
+      transactions,
+      assets,
+      splitsBySymbol,
+    });
+
+  const taggedTxs = effectiveTxs.filter(
+    (tx) =>
+      (tx.fundingTag ?? "").trim() === loan.fundingTag.trim() &&
+      tx.date <= asOfDate
+  );
 
   const fxLookup = (date: string, currency: string, txFx?: number | null) => {
     if (currency === "TWD") return 1;
@@ -205,9 +224,11 @@ export function computeLoanFacilitySummary(params: {
 
   let holdingsValueTwd = 0;
   let holdingsValueUsd = 0;
+  let cumulativeDividendsTwd = 0;
   const holdings: LoanHoldingSummary[] = [];
 
   for (const [symbol, pos] of holdingMap.entries()) {
+    cumulativeDividendsTwd += pos.cumulativeDividendsTwd;
     if (pos.splitAdjustedShares <= 1e-9) continue;
     const asset = assetMap.get(symbol);
     const currency = asset?.currency ?? "TWD";
@@ -227,16 +248,18 @@ export function computeLoanFacilitySummary(params: {
       name: asset?.name || ticker?.name || symbol,
       currency,
       shares: pos.splitAdjustedShares,
+      dripShares: pos.dripShares,
       latestPrice,
       marketValueUsd: mvUsd,
       marketValueTwd: mvTwd,
       costBasisTwd: pos.costBasisTwd,
       unrealizedPnlTwd: mvTwd - pos.costBasisTwd,
+      cumulativeDividendsTwd: pos.cumulativeDividendsTwd,
     });
   }
   holdings.sort((a, b) => b.marketValueTwd - a.marketValueTwd);
 
-  // Track residual USD cash for USD-funded loans (e.g. uninvested wire balance or cash from SELL)
+  // Track residual USD cash for USD-funded loans (uninvested wire balance, SELL/SELLOUT proceeds, USD DIVIDEND)
   let residualCashUsd = 0;
   if (loan.receivedUsd && loan.receivedUsd > 0) {
     let netUsdSpent = 0;
@@ -253,8 +276,35 @@ export function computeLoanFacilitySummary(params: {
     residualCashUsd = Math.max(0, loan.receivedUsd - netUsdSpent);
   }
 
-  const totalValueTwd = holdingsValueTwd + residualCashUsd * latestFxRate;
-  const totalValueUsd = holdingsValueUsd + residualCashUsd;
+  // Track residual TWD cash (TWD dividends, TWD SELL/SELLOUT proceeds, or uninvested TWD principal)
+  let residualCashTwd = 0;
+  {
+    let hasTwdTx = false;
+    let netTwdSpent = 0;
+    for (const tx of taggedTxs) {
+      const currency = assetMap.get(tx.symbol)?.currency ?? "TWD";
+      if (currency !== "TWD") continue;
+      hasTwdTx = true;
+      if (tx.type === "BUY") {
+        netTwdSpent += tx.shares * tx.price + tx.fee;
+      } else if (tx.type === "SELL" || tx.type === "DIVIDEND") {
+        netTwdSpent -= Math.max(0, tx.shares * tx.price - tx.fee);
+      }
+    }
+    if (hasTwdTx) {
+      if (loan.receivedUsd && loan.receivedUsd > 0) {
+        // USD-funded loan holding occasional TWD positions: capture net TWD cash inflows (dividends/sales)
+        residualCashTwd = Math.max(0, -netTwdSpent);
+      } else {
+        residualCashTwd = Math.max(0, loan.disbursedTwd - netTwdSpent);
+      }
+    }
+  }
+
+  const totalValueTwd =
+    holdingsValueTwd + residualCashUsd * latestFxRate + residualCashTwd;
+  const totalValueUsd =
+    holdingsValueUsd + residualCashUsd + residualCashTwd / (latestFxRate || 32);
   const totalCostTwd = loan.disbursedTwd + loan.wireFeeTwd;
   const avgEntryFxRate =
     loan.receivedUsd && loan.receivedUsd > 0
@@ -375,6 +425,8 @@ export function computeLoanFacilitySummary(params: {
     remainingPrincipalTwd,
     holdingsValueTwd,
     residualCashUsd,
+    residualCashTwd,
+    cumulativeDividendsTwd,
     totalValueTwd,
     totalValueUsd,
     grossPnlTwd,
@@ -405,10 +457,18 @@ export function computePortfolioLeverageSummary(params: {
   const { sheets, market, engine } = params;
   const loans = sheets.loans ?? [];
 
+  const splitsBySymbol = buildSplitsBySymbol(market, sheets.assets);
+  const allocatedTransactions = allocateTransactionsByFundingTag({
+    transactions: sheets.transactions,
+    assets: sheets.assets,
+    splitsBySymbol,
+  });
+
   const facilities = loans.map((loan) =>
     computeLoanFacilitySummary({
       loan,
       transactions: sheets.transactions,
+      allocatedTransactions,
       assets: sheets.assets,
       market,
       asOfDate: engine.asOfDate,

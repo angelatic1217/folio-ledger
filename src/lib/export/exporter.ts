@@ -398,7 +398,7 @@ export function buildSheetTabCsv(
       sheets.transactions.map((t) => [
         t.date,
         t.symbol,
-        t.type,
+        t.type === "SELL" && t.withdrawProceeds ? "SELLOUT" : t.type,
         t.shares,
         t.price,
         t.fee,

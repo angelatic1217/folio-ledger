@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import { TwrBenchmarkChart } from "@/components/charts/TwrBenchmarkChart";
 import { UnderwaterAreaChart } from "@/components/charts/UnderwaterAreaChart";
 import { Badge, Button, Card } from "@/components/ui/primitives";
+import { OverviewReturnsTab } from "@/components/views/overview/OverviewReturnsTab";
 import { usePrivacy } from "@/lib/privacy/context";
 import { computePeriodPerformance } from "@/lib/quant/attribution";
 import {
   buildNormalizedBenchmarkCurves,
+  computePortfolioCapitalMetrics,
   sliceSeriesByRange,
 } from "@/lib/quant/engine";
 import { formatPercent } from "@/lib/utils";
@@ -20,6 +22,17 @@ import type {
   TimeRangePreset,
 } from "@/types/quant";
 import type { CurrencyCode, PortfolioSheetsData } from "@/types/sheet";
+
+type OverviewSubTab = "returns" | "risk";
+
+const SUB_TABS: Array<{
+  key: OverviewSubTab;
+  label: string;
+  icon: typeof TrendingUp;
+}> = [
+  { key: "returns", label: "指數報酬與複利成長", icon: TrendingUp },
+  { key: "risk", label: "TWR 與水下風控", icon: ShieldAlert },
+];
 
 const RANGES: TimeRangePreset[] = ["1M", "3M", "6M", "YTD", "1Y", "3Y", "ALL"];
 
@@ -39,6 +52,7 @@ interface OverviewViewProps {
   leverage?: PortfolioLeverageSummary | null;
   onNavigateMdd: () => void;
   onNavigateLoans?: () => void;
+  onNavigateAnnual?: () => void;
 }
 
 export function OverviewView({
@@ -51,8 +65,10 @@ export function OverviewView({
   leverage,
   onNavigateMdd,
   onNavigateLoans,
+  onNavigateAnnual,
 }: OverviewViewProps) {
   const { fmtMoney } = usePrivacy();
+  const [activeSubTab, setActiveSubTab] = useState<OverviewSubTab>("returns");
   const [range, setRange] = useState<TimeRangePreset>("1Y");
   const [enabledBenchmarks, setEnabledBenchmarks] = useState<Record<string, boolean>>({
     VT: true,
@@ -66,6 +82,11 @@ export function OverviewView({
   const { points, drawdownSummary, rangeTwr } = useMemo(
     () => sliceSeriesByRange(activeSeries, range),
     [activeSeries, range]
+  );
+
+  const capitalMetrics = useMemo(
+    () => computePortfolioCapitalMetrics(activeSeries, scope),
+    [activeSeries, scope]
   );
 
   const periodMd = useMemo(() => {
@@ -157,41 +178,82 @@ export function OverviewView({
 
   return (
     <div className="space-y-5">
-      {/* Header + Time Range Selector */}
+      {/* Shared Header + Contextual Time Range Selector */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold">總覽與水下風控儀表板</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-bold">總覽儀表板</h2>
             {fundingFilter !== "ALL" && (
               <Badge variant="default">資金篩選：#{fundingFilter}</Badge>
             )}
           </div>
           <p className="text-xs text-[var(--muted-foreground)]">
-            {scope === "total"
-              ? "含現金全資產（台股 + 美股 + 現金快照）"
-              : "純投資部位（台股 + 美股，精確剝離出入金）"}{" "}
+            {activeSubTab === "returns"
+              ? `長期指數化投資視角：追蹤投入本金與財富複利成長、總含息損益 (MOIC)、資金加權 XIRR 與核心配置`
+              : scope === "total"
+                ? "含現金全資產（台股 + 美股 + 現金快照）"
+                : "純投資部位（台股 + 美股，精確剝離出入金）"}{" "}
             · 資料基準日 {engine.asOfDate} · USD/TWD{" "}
             <span className="font-mono">{engine.latestFxRate.toFixed(2)}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1 text-xs">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`rounded-md px-2.5 py-1 font-mono transition cursor-pointer ${
-                range === r
-                  ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]"
-                  : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+        {activeSubTab === "risk" && (
+          <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1 text-xs">
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`rounded-md px-2.5 py-1 font-mono transition cursor-pointer ${
+                  range === r
+                    ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Sub-Tab Bar (matches MddMatrixView & LoansLeverageView pattern) */}
+      <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 text-xs">
+        {SUB_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeSubTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveSubTab(tab.key)}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 transition cursor-pointer ${
+                active
+                  ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)] shadow-xs"
+                  : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeSubTab === "returns" ? (
+        <OverviewReturnsTab
+          engine={engine}
+          sheets={sheets}
+          market={market}
+          scope={scope}
+          currency={currency}
+          fundingFilter={fundingFilter}
+          leverage={leverage}
+          onNavigateMdd={onNavigateMdd}
+          onNavigateLoans={onNavigateLoans}
+          onNavigateAnnual={onNavigateAnnual}
+        />
+      ) : (
+        <div className="space-y-5">
       {/* 4 KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="p-4 space-y-2">
@@ -387,6 +449,28 @@ export function OverviewView({
 
           <div className="space-y-2 border-t border-[var(--border)] pt-3 text-xs">
             <div className="flex justify-between">
+              <span className="text-[var(--muted-foreground)]">
+                淨投入資金（實投本金）
+              </span>
+              <span className="font-mono font-semibold tabular-nums">
+                {capitalMetrics.netPrincipalTwd >= 0
+                  ? fmtMoney(
+                      capitalMetrics.netPrincipalTwd,
+                      currency,
+                      engine.latestFxRate
+                    )
+                  : `已回本 (${fmtMoney(capitalMetrics.netPrincipalTwd, currency, engine.latestFxRate, { signed: true, compact: true })})`}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--muted-foreground)]">
+                目前持倉成本（含換股）
+              </span>
+              <span className="font-mono text-[var(--muted-foreground)] tabular-nums">
+                {fmtMoney(engine.totalCostBasisTwd, currency, engine.latestFxRate)}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-[var(--muted-foreground)]">累積已領現金股利</span>
               <span className="font-mono font-semibold text-[var(--success)] tabular-nums">
                 {fmtMoney(
@@ -438,6 +522,8 @@ export function OverviewView({
           </div>
         </Card>
       </div>
+        </div>
+      )}
     </div>
   );
 }

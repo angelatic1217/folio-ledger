@@ -51,7 +51,7 @@ npm run build
 ## 串接你的非公開 Google Sheet（GIS OAuth 設定）
 
 1. 在 Google Sheets 建立一張私人試算表（權限維持「受限制 / 非公開」），參考 `templates/` 資料夾匯入以下分頁：
-   - `transactions`（必填：交易紀錄，支援 `BUY / SELL / DIVIDEND / DRIP`、中文類別與選填 `funding_tag` 資金來源標籤）
+   - `transactions`（必填：交易紀錄，支援 `BUY / SELL / SELLOUT（賣出出金）/ DIVIDEND / DRIP`、中文類別與選填 `funding_tag` 資金來源標籤；配息與未標記換股將自動按持股比例分攤並配對）
    - `assets`（必填：標的設定與 `monitor_mdd` 開關）
    - `cash_snapshots`（選填：帳戶現金盤點快照）
    - `benchmarks`（選填：基準對照表）

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { computePeriodPerformance } from "@/lib/quant/attribution";
 import { buildForwardFilledBarMap, buildUnionTradingCalendar } from "@/lib/quant/calendar";
 import { applyMddLookback, computeDrawdownSeries } from "@/lib/quant/drawdown";
-import { runQuantEngine, sliceSeriesByRange } from "@/lib/quant/engine";
+import {
+  computePortfolioCapitalMetrics,
+  runQuantEngine,
+  sliceSeriesByRange,
+} from "@/lib/quant/engine";
 import { getCumulativeSplitFactorAfter, toSplitAdjustedShares } from "@/lib/quant/holdings";
 import { computeDailySubperiodReturn, computeModifiedDietz } from "@/lib/quant/returns";
 import type { MarketDataBundle } from "@/types/market";
@@ -317,7 +321,103 @@ describe("Quant Engine: Core Financial Formulas", () => {
 
     expect(maxRows[0].historicalMdd).toBeCloseTo(-0.8, 5);
     expect(fiveYearRows[0].historicalMdd).toBeCloseTo(-0.35, 5);
+    expect(maxRows[0].mddDate).toBe("2002-10-09");
     expect(fiveYearRows[0].mddDate).toBe("2022-11-03");
     expect(fiveYearRows[0].mddRatioPct).toBe(Math.round((0.1 / 0.35) * 100));
+  });
+
+  it("distinguishes net invested capital from swap-inflated holding cost basis and handles principal withdrawal", () => {
+    const market: MarketDataBundle = {
+      generatedAt: "2026-06-01",
+      fxTicker: "TWD=X",
+      fxBars: [
+        { date: "2025-01-01", close: 32, adjClose: 32 },
+        { date: "2025-06-01", close: 32, adjClose: 32 },
+        { date: "2026-01-01", close: 32, adjClose: 32 },
+        { date: "2026-06-01", close: 32, adjClose: 32 },
+      ],
+      tickers: {
+        "2330": {
+          symbol: "2330",
+          yahooTicker: "2330.TW",
+          currency: "TWD",
+          lastPrice: 200,
+          lastDate: "2026-06-01",
+          splits: [],
+          bars: [
+            { date: "2025-01-01", close: 100, adjClose: 100 },
+            { date: "2025-06-01", close: 200, adjClose: 200 },
+            { date: "2026-01-01", close: 200, adjClose: 200 },
+            { date: "2026-06-01", close: 200, adjClose: 200 },
+          ],
+        },
+        "0050": {
+          symbol: "0050",
+          yahooTicker: "0050.TW",
+          currency: "TWD",
+          lastPrice: 55,
+          lastDate: "2026-06-01",
+          splits: [],
+          bars: [
+            { date: "2025-01-01", close: 50, adjClose: 50 },
+            { date: "2025-06-01", close: 50, adjClose: 50 },
+            { date: "2026-01-01", close: 55, adjClose: 55 },
+            { date: "2026-06-01", close: 55, adjClose: 55 },
+          ],
+        },
+      },
+    };
+
+    // Put in 100,000 -> doubles to 200,000 -> swap 100% into 0050 (200,000) -> 0050 rises to 220,000
+    const swapSheets: PortfolioSheetsData = {
+      source: "csv",
+      assets: [
+        { symbol: "2330", name: "台積電", market: "TW", currency: "TWD", yahooTicker: "2330.TW", monitorMdd: true },
+        { symbol: "0050", name: "元大台灣50", market: "TW", currency: "TWD", yahooTicker: "0050.TW", monitorMdd: true },
+      ],
+      cashSnapshots: [],
+      benchmarks: [],
+      transactions: [
+        { id: "s1", date: "2025-01-01", symbol: "2330", type: "BUY", shares: 1000, price: 100, fee: 0 },
+        { id: "s2", date: "2025-06-01", symbol: "2330", type: "SELL", shares: 1000, price: 200, fee: 0 },
+        { id: "s3", date: "2025-06-01", symbol: "0050", type: "BUY", shares: 4000, price: 50, fee: 0 },
+      ],
+    };
+
+    const swapEngine = runQuantEngine(swapSheets, market);
+    const swapCapital = computePortfolioCapitalMetrics(
+      swapEngine.investedSeries,
+      "invested"
+    );
+
+    // Book holding cost is inflated to 200,000 by swap, while pure net invested capital remains 100,000
+    expect(swapEngine.totalCostBasisTwd).toBeCloseTo(200_000, 2);
+    expect(swapCapital.netPrincipalTwd).toBeCloseTo(100_000, 2);
+    expect(swapCapital.effectiveCapitalBaseTwd).toBeCloseTo(100_000, 2);
+    const totalRealized = swapEngine.symbolPerformance.reduce(
+      (s, r) => s + r.realizedPnlTwd,
+      0
+    );
+    expect(swapEngine.totalCostBasisTwd - swapCapital.netPrincipalTwd).toBeCloseTo(
+      totalRealized,
+      2
+    );
+
+    // House-money withdrawal: SELLOUT 165,000 out of 220,000 -> netPrincipal = -65,000, peak remains 100,000
+    const withdrawSheets: PortfolioSheetsData = {
+      ...swapSheets,
+      transactions: [
+        ...swapSheets.transactions,
+        { id: "s4", date: "2026-01-01", symbol: "0050", type: "SELL", shares: 3000, price: 55, fee: 0, withdrawProceeds: true },
+      ],
+    };
+    const withdrawEngine = runQuantEngine(withdrawSheets, market);
+    const withdrawCapital = computePortfolioCapitalMetrics(
+      withdrawEngine.investedSeries,
+      "invested"
+    );
+    expect(withdrawCapital.netPrincipalTwd).toBeCloseTo(-65_000, 2);
+    expect(withdrawCapital.peakNetPrincipalTwd).toBeCloseTo(100_000, 2);
+    expect(withdrawCapital.effectiveCapitalBaseTwd).toBeCloseTo(100_000, 2);
   });
 });

@@ -13,6 +13,7 @@ export interface Transaction {
   fee: number;
   fxRate?: number | null;
   fundingTag?: string; // e.g. "自有資金", "2025信貸", "2026增貸"
+  withdrawProceeds?: boolean; // True when recorded as SELLOUT (賣出出金): proceeds do not enter swap reinvestment pool
   note?: string;
 }
 

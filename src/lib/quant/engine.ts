@@ -21,6 +21,7 @@ import {
 } from "./drawdown";
 import { computeHoldingsAsOf, toSplitAdjustedShares } from "./holdings";
 import { computeDailySubperiodReturn, computeTransactionFlow } from "./returns";
+import { buildSymbolPerformanceRows } from "./symbol-performance";
 
 function getCashValueTwdOnDate(
   date: string,
@@ -297,6 +298,16 @@ export function runQuantEngine(
     thresholds,
   });
 
+  const symbolPerformance = buildSymbolPerformanceRows({
+    assets,
+    transactions: sortedTxs,
+    market,
+    holdings: finalHoldings,
+    latestFxRate,
+    totalInvestedTwd: totalInvestedValueTwd,
+    asOfDate: latestMarketDate,
+  });
+
   const annualByScope = computeAnnualPerformanceByScope({
     transactions: sortedTxs,
     assets,
@@ -311,6 +322,7 @@ export function runQuantEngine(
     investedSeries,
     totalSeries,
     mddMatrix,
+    symbolPerformance,
     annualByScope,
     totalCostBasisTwd,
     totalInvestedValueTwd,
@@ -428,4 +440,88 @@ export function buildNormalizedBenchmarkCurves(params: {
   }
 
   return result;
+}
+
+export interface PortfolioCapitalPoint {
+  date: string;
+  netPrincipalTwd: number;
+  displayPrincipalTwd: number;
+  marketValueTwd: number;
+  cumulativeDividendsTwd: number;
+  totalWealthInclDivTwd: number;
+}
+
+export interface PortfolioCapitalMetrics {
+  points: PortfolioCapitalPoint[];
+  /** Current net out-of-pocket capital (cumulative BUY - SELL, plus cash snapshots when scope === "total"). Unaffected by swaps. */
+  netPrincipalTwd: number;
+  /** Peak historical net capital ever committed (guards return/MOIC denominator when principal has been withdrawn). */
+  peakNetPrincipalTwd: number;
+  /** Stable capital base denominator for total return % and MOIC without swap dilution. */
+  effectiveCapitalBaseTwd: number;
+}
+
+/**
+ * Computes pure out-of-pocket net invested capital over time (cumulative BUY - SELL)
+ * so swaps/rebalancing do not inflate the investor's principal cost basis or dilute MOIC.
+ */
+export function computePortfolioCapitalMetrics(
+  series: DailyPortfolioPoint[],
+  scope: "invested" | "total"
+): PortfolioCapitalMetrics {
+  if (series.length === 0) {
+    return {
+      points: [],
+      netPrincipalTwd: 0,
+      peakNetPrincipalTwd: 0,
+      effectiveCapitalBaseTwd: 0,
+    };
+  }
+
+  let cumNetPrincipalTwd = 0;
+  let peakNetPrincipalTwd = 0;
+  let cumDivTwd = 0;
+  let prevCashTwd = 0;
+
+  const points: PortfolioCapitalPoint[] = series.map((pt, idx) => {
+    cumDivTwd += pt.dividendIncomeTwd;
+    // externalCashFlowTwd = BUY - SELL - DIVIDEND => BUY - SELL = externalCashFlowTwd + dividendIncomeTwd
+    const netBuyMinusSell = pt.externalCashFlowTwd + pt.dividendIncomeTwd;
+    const cashDelta =
+      scope === "total"
+        ? idx === 0
+          ? pt.cashValueTwd
+          : pt.cashValueTwd - prevCashTwd
+        : 0;
+    cumNetPrincipalTwd += netBuyMinusSell + cashDelta;
+    prevCashTwd = pt.cashValueTwd;
+
+    if (cumNetPrincipalTwd > peakNetPrincipalTwd) {
+      peakNetPrincipalTwd = cumNetPrincipalTwd;
+    }
+
+    const marketValueTwd =
+      scope === "total" ? pt.totalValueTwd : pt.investedValueTwd;
+
+    return {
+      date: pt.date,
+      netPrincipalTwd: cumNetPrincipalTwd,
+      displayPrincipalTwd: Math.max(0, cumNetPrincipalTwd),
+      marketValueTwd,
+      cumulativeDividendsTwd: cumDivTwd,
+      totalWealthInclDivTwd: marketValueTwd + cumDivTwd,
+    };
+  });
+
+  const effectiveCapitalBaseTwd =
+    cumNetPrincipalTwd > 1e-6
+      ? Math.max(cumNetPrincipalTwd, peakNetPrincipalTwd)
+      : peakNetPrincipalTwd;
+
+  return {
+    points,
+    netPrincipalTwd: cumNetPrincipalTwd,
+    peakNetPrincipalTwd,
+    effectiveCapitalBaseTwd,
+  };
 }

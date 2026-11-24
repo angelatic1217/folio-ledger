@@ -55,6 +55,17 @@ export function LoanHoldingsTab({
           },
         ]
       : []),
+    ...(f.residualCashTwd > 1
+      ? [
+          {
+            key: "TWD_CASH",
+            label: "TWD 現金 / 配息餘額",
+            valueTwd: f.residualCashTwd,
+            pct: (f.residualCashTwd / totalVal) * 100,
+            color: "var(--chart-5)",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -256,9 +267,14 @@ export function LoanHoldingsTab({
               持股庫存明細（標籤 <code className="font-mono">#{f.fundingTag}</code>）
             </h3>
             <p className="text-xs text-[var(--muted-foreground)]">
-              已自動涵蓋拆股調整、DRIP 股息再投入與換股後之最新股數與平均成本
+              已自動涵蓋拆股調整、按持股比例分攤 DRIP／現金配息與換股自動配對後之最新股數與平均成本
             </p>
           </div>
+          {f.cumulativeDividendsTwd > 1 && (
+            <Badge variant="outline">
+              累計分攤現金配息 {fmtMoney(f.cumulativeDividendsTwd, currency, fxRate)}
+            </Badge>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-right font-mono text-xs">
@@ -289,7 +305,12 @@ export function LoanHoldingsTab({
                       </div>
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
-                      {fmtShares(h.shares, { maxDigits: 4 })}
+                      <div>{fmtShares(h.shares, { maxDigits: 4 })}</div>
+                      {h.dripShares > 1e-6 && (
+                        <div className="text-[0.68rem] text-[var(--success)]">
+                          含 DRIP +{fmtShares(h.dripShares, { maxDigits: 4 })}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 tabular-nums">
                       {formatPrice(h.latestPrice, h.currency)}
@@ -359,7 +380,34 @@ export function LoanHoldingsTab({
                 </tr>
               )}
 
-              {f.holdings.length === 0 && (
+              {f.residualCashTwd > 1 && (
+                <tr className="hover:bg-[var(--muted)]/40">
+                  <td className="px-4 py-2.5 text-left font-sans">
+                    <div className="font-mono font-semibold">TWD 現金 / 配息餘額</div>
+                    <div className="text-[0.7rem] text-[var(--muted-foreground)]">
+                      未投入／出金回收或分攤之台幣現金股息
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 tabular-nums">—</td>
+                  <td className="px-4 py-2.5 tabular-nums">—</td>
+                  <td className="px-4 py-2.5 tabular-nums">
+                    {fmtUsd(f.residualCashTwd / (fxRate || 32))}
+                  </td>
+                  <td className="px-4 py-2.5 font-semibold tabular-nums">
+                    {fmtMoney(f.residualCashTwd, currency, fxRate)}
+                  </td>
+                  <td className="px-4 py-2.5 text-[var(--muted-foreground)]">—</td>
+                  <td className="px-4 py-2.5 tabular-nums">
+                    {((f.residualCashTwd / totalVal) * 100).toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-2.5 text-[var(--muted-foreground)]">—</td>
+                  <td className="px-4 py-2.5 text-[var(--muted-foreground)]">—</td>
+                </tr>
+              )}
+
+              {f.holdings.length === 0 &&
+                f.residualCashUsd <= 0.01 &&
+                f.residualCashTwd <= 1 && (
                 <tr>
                   <td
                     colSpan={9}

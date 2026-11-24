@@ -45,6 +45,98 @@ export interface SymbolUnderwaterPoint {
   adjClose: number;
 }
 
+export type SymbolHoldingStatus = "held" | "closed" | "watch";
+
+export interface SymbolLookbackMetrics {
+  cagr: number | null; // Annualized total-return (adjClose) CAGR over lookback window
+  volatility: number | null; // Annualized daily volatility (std * sqrt(252))
+  maxDrawdown: number; // <= 0 over lookback window
+  calmar: number | null; // cagr / |maxDrawdown|
+  sharpe: number | null; // (cagr - riskFreeRate) / volatility
+  totalReturn: number | null; // Cumulative adjClose return over lookback window
+  years: number;
+}
+
+export interface SymbolWealthPoint {
+  date: string;
+  costBasisTwd: number;
+  marketValueTwd: number;
+  cumulativeDividendsTwd: number;
+  totalValueInclDivTwd: number; // marketValueTwd + cumulativeDividendsTwd
+  adjClose: number;
+}
+
+export interface SymbolPerformanceRow {
+  symbol: string;
+  name: string;
+  market: MarketCode;
+  currency: CurrencyCode;
+  yahooTicker: string;
+  status: SymbolHoldingStatus;
+  held: boolean;
+
+  // Position & Cost Basis
+  shares: number;
+  dripShares: number;
+  weightPct: number;
+  latestPrice: number;
+  latestDate: string;
+  firstMarketDate: string;
+
+  // Per-share prices (local currency, split-adjusted)
+  avgCostLocal: number | null;
+  breakevenPriceLocal: number | null;
+  priceVsAvgCostPct: number | null;
+
+  // Valuation & Cost (Local + TWD)
+  costBasisLocal: number;
+  costBasisTwd: number;
+  totalInvestedLocal: number;
+  totalInvestedTwd: number;
+  marketValueLocal: number;
+  marketValueTwd: number;
+
+  // P&L Breakdown
+  unrealizedPnlLocal: number;
+  unrealizedPnlTwd: number;
+  unrealizedPnlPctLocal: number | null;
+  unrealizedPnlPctTwd: number | null;
+  realizedPnlLocal: number;
+  realizedPnlTwd: number;
+  cumulativeDividendsLocal: number;
+  cumulativeDividendsTwd: number;
+  dividendRecoveryPct: number | null;
+  totalFeesTwd: number;
+
+  // Total Return (Unrealized + Realized + Cash Dividends)
+  totalPnlLocal: number;
+  totalPnlTwd: number;
+  totalReturnPctLocal: number | null;
+  totalReturnPctTwd: number | null;
+  wealthMultipleTwd: number | null;
+
+  // US FX Attribution (null for TWD assets)
+  avgEntryFxRate: number | null;
+  equityPnlTwd: number;
+  fxPnlTwd: number | null;
+
+  // Tenure & Personal Annualized Return (XIRR)
+  firstBuyDate: string | null;
+  lastTxDate: string | null;
+  holdingDays: number;
+  txCount: number;
+  xirrTwd: number | null;
+  xirrUsd: number | null;
+  xirrLocal: number | null;
+
+  // Long-Term Market Quality by Lookback ("5Y" | "10Y" | "MAX")
+  marketMetrics: Record<MddLookbackPreset, SymbolLookbackMetrics>;
+
+  // Chart Series
+  wealthSeries: SymbolWealthPoint[];
+  marketSeries: Array<{ date: string; adjClose: number }>;
+}
+
 export interface MddMatrixRow {
   symbol: string;
   name: string;
@@ -135,6 +227,7 @@ export interface QuantEngineOutput {
   investedSeries: DailyPortfolioPoint[];
   totalSeries: DailyPortfolioPoint[];
   mddMatrix: MddMatrixRow[];
+  symbolPerformance: SymbolPerformanceRow[];
   annualByScope: Record<BenchmarkScope, AnnualPerformanceRow[]>;
   totalCostBasisTwd: number;
   totalInvestedValueTwd: number;
@@ -162,11 +255,13 @@ export interface LoanHoldingSummary {
   name: string;
   currency: CurrencyCode;
   shares: number;
+  dripShares: number;
   latestPrice: number;
   marketValueUsd: number;
   marketValueTwd: number;
   costBasisTwd: number;
   unrealizedPnlTwd: number;
+  cumulativeDividendsTwd: number;
 }
 
 export interface LoanFacilitySummary {
@@ -197,6 +292,8 @@ export interface LoanFacilitySummary {
   remainingPrincipalTwd: number; // 0 when closed/refinanced
   holdingsValueTwd: number;
   residualCashUsd: number;
+  residualCashTwd: number;
+  cumulativeDividendsTwd: number;
   totalValueTwd: number;
   totalValueUsd: number;
   grossPnlTwd: number;
